@@ -1,0 +1,214 @@
+/*
+ * Orion design tokens: single source of truth.
+ * Spec and rationale: docs/design/04-DESIGN-TOKENS.md
+ * Copy this file into the app unchanged (src/styles/tokens.css).
+ * Components must use these variables only, never raw hex, px or blur values.
+ * Light theme only for the hackathon. Dark mode (P2) must get its own validated values.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ---------- Background: cosmic dawn ---------- */
+  --color-bg-canvas: #f3f5fa;
+  --color-bg-canvas-alt: #e9edf7;
+  --color-bg-orb-sky: #c9d7f7;
+  --color-bg-orb-lavender: #dcd3f6;
+  --color-bg-orb-peach: #f6dfcf;
+  --color-bg-orbit-line: rgba(14, 26, 58, 0.06);
+
+  /* ---------- Surfaces ---------- */
+  --color-surface-solid: #ffffff;
+  --color-surface-glass: rgba(255, 255, 255, 0.55);
+  --color-surface-glass-strong: rgba(255, 255, 255, 0.72);
+  --color-surface-glass-fallback: rgba(250, 251, 254, 0.94);
+  --color-surface-inset: rgba(14, 26, 58, 0.04);
+  --color-surface-scrim: rgba(14, 26, 58, 0.28);
+
+  /* System tints: identity only, never status */
+  --tint-cardio: rgba(250, 222, 214, 0.55);
+  --tint-metabolic: rgba(214, 228, 250, 0.55);
+  --tint-mind: rgba(228, 222, 250, 0.55);
+  --tint-thermal: rgba(214, 240, 232, 0.55);
+  --tint-blood: rgba(246, 220, 230, 0.55);
+  --tint-musculo: rgba(240, 232, 214, 0.55);
+
+  /* ---------- Ink ---------- */
+  --color-ink-primary: #0e1a3a;
+  --color-ink-secondary: #465170;
+  --color-ink-muted: #5d6785;
+  --color-ink-inverse: #ffffff;
+
+  /* ---------- Brand / interaction ---------- */
+  --color-accent: #2f54d6;
+  --color-accent-hover: #2546b8;
+  --color-accent-pressed: #1e3a9c;
+  --color-accent-soft: rgba(47, 84, 214, 0.12);
+  --color-navy: #1b2559;
+  --color-highlight: #e0a23a;
+  --color-focus-ring: #2f54d6;
+
+  /* ---------- Health status (reserved) ---------- */
+  --status-good: #0ca30c;
+  --status-good-text: #13762a;
+  --status-good-soft: rgba(12, 163, 12, 0.12);
+  --status-watch: #fab219;
+  --status-watch-text: #8a5a00;
+  --status-watch-soft: rgba(250, 178, 25, 0.14);
+  --status-caution: #ec835a;
+  --status-caution-text: #b2431c;
+  --status-caution-soft: rgba(236, 131, 90, 0.14);
+  --status-alert: #d03b3b;
+  --status-alert-text: #c53030;
+  --status-alert-soft: rgba(208, 59, 59, 0.12);
+  --status-none: #8c93a8;
+  --status-none-text: #5d6785;
+  --status-none-soft: rgba(140, 147, 168, 0.14);
+
+  /* ---------- Charts (validated: lines, adjacent pairs, light) ---------- */
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+  --chart-series-3: #1baf7a;
+  --chart-series-4: #6250d6;
+  --chart-baseline-band: rgba(47, 84, 214, 0.1);
+  --chart-reference-band: rgba(14, 26, 58, 0.05);
+  --chart-grid: #e1e4ee;
+  --chart-axis: #c3c8d6;
+  --chart-dot-texture: rgba(14, 26, 58, 0.07);
+  --chart-line-width: 2px;
+  --chart-marker-size: 8px;
+  --chart-marker-ring: 2px;
+
+  /* ---------- Glass ---------- */
+  --glass-blur: 24px;
+  --glass-blur-strong: 32px;
+  --glass-saturate: 160%;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.7);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --glass-hairline: 0 0 0 1px rgba(14, 26, 58, 0.06);
+  --shadow-glass: 0 1px 2px rgba(16, 24, 48, 0.04), 0 12px 32px -12px rgba(16, 24, 48, 0.14);
+  --shadow-raised: 0 2px 4px rgba(16, 24, 48, 0.06), 0 24px 48px -16px rgba(16, 24, 48, 0.22);
+
+  /* ---------- Typography ---------- */
+  --font-display: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ui: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* shorthand: weight size/line-height family */
+  --type-hero-number: 300 64px/64px var(--font-display);
+  --type-display: 300 40px/44px var(--font-display);
+  --type-page-title: 600 28px/34px var(--font-display);
+  --type-section-title: 600 20px/26px var(--font-display);
+  --type-metric-lg: 500 32px/36px var(--font-display);
+  --type-metric-md: 600 24px/28px var(--font-ui);
+  --type-card-title: 600 16px/22px var(--font-ui);
+  --type-body: 400 15px/22px var(--font-ui);
+  --type-body-sm: 400 13px/18px var(--font-ui);
+  --type-label: 500 12px/16px var(--font-ui);
+  --type-unit: 500 13px/16px var(--font-ui);
+  --type-caption: 500 11px/14px var(--font-ui);
+  --type-nav: 500 11px/14px var(--font-ui);
+  --type-button: 600 15px/20px var(--font-ui);
+
+  --tracking-hero: -0.02em;
+  --tracking-title: -0.01em;
+  --tracking-label: 0.06em;
+  --tracking-caption: 0.02em;
+
+  /* ---------- Spacing (4-pt) ---------- */
+  --space-0_5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --card-padding: var(--space-5);
+  --card-gap: var(--space-3);
+  --section-gap: var(--space-8);
+  --page-gutter: var(--space-4);
+
+  /* ---------- Radii ---------- */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  /* ---------- Fixed dimensions ---------- */
+  --nav-bottom-height: 64px;
+  --nav-rail-width: 88px;
+  --header-height: 56px;
+  --touch-target-min: 44px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-tile: 40px;
+  --content-max: 1200px;
+
+  /* ---------- Motion ---------- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.2);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-chart: 600ms;
+
+  /* ---------- Layers ---------- */
+  --z-background: 0;
+  --z-content: 1;
+  --z-nav: 10;
+  --z-sheet: 20;
+  --z-toast: 30;
+}
+
+/* Breakpoint-dependent spacing (md = 600px, lg = 1024px) */
+@media (min-width: 600px) {
+  :root {
+    --card-padding: var(--space-6);
+    --card-gap: var(--space-4);
+    --page-gutter: var(--space-6);
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --page-gutter: var(--space-8);
+  }
+}
+
+/* Motion off */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+    --duration-chart: 0ms;
+  }
+}
+
+/* Reference glass recipe. Components use this class or copy it exactly. */
+.glass {
+  background: var(--color-surface-glass-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-highlight), var(--glass-hairline), var(--shadow-glass);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: var(--color-surface-glass-fallback); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: var(--color-surface-glass-fallback);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .glass { border: 1px solid CanvasText; background: Canvas; }
+}
