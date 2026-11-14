@@ -1,18 +1,18 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import styles from "./SignalLock.module.css";
-import { useSignalLockTest } from "./useSignalLockTest";
-import { formatLength } from "./pvt";
+import styles from "./Beacon.module.css";
+import { useBeaconTest } from "./useBeaconTest";
 import type { TestRun } from "./types";
 
 interface Props {
-  durationMs: number;
+  lapseLineMs: number;
+  adaptive: boolean;
   onDone: (run: TestRun) => void;
 }
 
 /** Full-screen test. The whole screen is the tap target (design doc 07: SignalStimulus). */
-export function TestScreen({ durationMs, onDone }: Props) {
-  const t = useSignalLockTest(durationMs, onDone);
+export function TestScreen({ lapseLineMs, adaptive, onDone }: Props) {
+  const t = useBeaconTest({ lapseLineMs, adaptive, onDone });
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,13 +32,13 @@ export function TestScreen({ durationMs, onDone }: Props) {
       className={styles.test}
       tabIndex={0}
       role="application"
-      aria-label="Alertness test. Tap anywhere, or press Space, as soon as the ring appears."
+      aria-label="Beacon alertness test. Tap anywhere, or press Space, as soon as the beacon lights up."
       onPointerDown={t.phase === "ready" ? begin : t.onPointerDown}
       onKeyDown={t.phase === "ready" ? begin : t.onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >
       <span className={styles.clock} ref={(el) => void (t.els.current.clock = el)} aria-hidden="true">
-        {Math.floor(durationMs / 60000)}:{String(Math.round((durationMs % 60000) / 1000)).padStart(2, "0")}
+        3:00
       </span>
 
       {t.phase === "running" && (
@@ -64,14 +64,17 @@ export function TestScreen({ durationMs, onDone }: Props) {
       {t.phase === "ready" && (
         <div className={styles.readyText}>
           <p className={styles.title}>Tap anywhere to begin</p>
-          <p className={styles.body}>Then tap as soon as the ring appears. {formatLength(durationMs)}.</p>
+          <p className={styles.body}>
+            Then tap as soon as the beacon lights up.{" "}
+            {adaptive ? "It stops as soon as the result is clear (3 min max)." : "3 minutes: this check sets your baseline."}
+          </p>
         </div>
       )}
 
       {(t.phase === "paused" || t.phase === "confirm-quit") && (
         <div className={styles.overlay} onPointerDown={stop} onKeyDown={stop}>
-          <div className={"card " + styles.dialog} role="dialog" aria-modal="true" aria-labelledby="sl-paused">
-            <h2 id="sl-paused" className={styles.title}>
+          <div className={"card " + styles.dialog} role="dialog" aria-modal="true" aria-labelledby="bc-paused">
+            <h2 id="bc-paused" className={styles.title}>
               {t.phase === "paused" ? "Check paused" : "Pause the check?"}
             </h2>
             <p className={styles.body}>Resume within 2 minutes to keep this check. Otherwise it's saved as incomplete.</p>

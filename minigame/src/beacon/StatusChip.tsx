@@ -1,5 +1,5 @@
 import { CircleCheck, CircleDashed, OctagonAlert, TriangleAlert } from "lucide-react";
-import styles from "./SignalLock.module.css";
+import styles from "./Beacon.module.css";
 import type { IndicatorStatusValue } from "./types";
 
 const WORD: Record<IndicatorStatusValue, string> = {

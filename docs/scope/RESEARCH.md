@@ -129,7 +129,7 @@ https://physionet.org/content/mmash/1.0.0/ · DOI 10.13026/cerq-fc86 · checked 
 - **Earth, not space.** Ordinary daily life, no spaceflight stressors.
 - **Only 24 h per person.** That's not enough for the 7-day rolling baseline in MINIGAME.md. In the demo, use night-time HRV as the reference instead, and say a real mission would build 7+ days.
 - **All young men.** Not representative of a mixed crew.
-- **No PVT or other reaction test.** Signal Lock scores still come from the person playing the demo.
+- **No PVT or other reaction test.** Beacon scores still come from the person playing the demo.
 - **No breathing intervention.** It can't show an HRV change from Orbit Breath, so we leave that out (live sensors are excluded).
 
 ### Processing notes (for when we build)
@@ -200,7 +200,7 @@ Every citation was checked against **Crossref** (the official DOI registry). Fiv
 ### Findings that change our in-scope design
 | Source | Finding | What we do with it |
 |---|---|---|
-| **Dev et al. 2024**, *Front Physiol* (#4): 25 ISS astronauts, NASA Cognition battery, 5 mission phases | **Finding:** no systematic cognitive decline on 6-month missions, but **slowing early in flight in processing speed, visual working memory and sustained attention (PVT)**. **PVT speed was among the most often low**: 20.2% of in- and post-flight PVT speed scores were ≥ 1.5 SD below the pre-flight baseline (second only to working memory, 28.3%) | Confirms **Signal Lock (PVT)** is the right single test. Use **−1.5 SD from baseline** as the "low score" line (the paper's cutoff) |
+| **Dev et al. 2024**, *Front Physiol* (#4): 25 ISS astronauts, NASA Cognition battery, 5 mission phases | **Finding:** no systematic cognitive decline on 6-month missions, but **slowing early in flight in processing speed, visual working memory and sustained attention (PVT)**. **PVT speed was among the most often low**: 20.2% of in- and post-flight PVT speed scores were ≥ 1.5 SD below the pre-flight baseline (second only to working memory, 28.3%) | Confirms **Beacon (PVT)** is the right single test. Its pre-flight reference (≈ 211 ms) sets each astronaut's lapse line. (The bands now come from PVT-BA, Basner 2022, not from this paper's 1.5 SD cutoff.) |
 | Dev et al. 2024 (#4) | **Finding:** exploratory analyses found **no clear link between cognitive scores and self-reported sleep or alertness ratings** | Self-report alone **can't** tell us who is impaired, so the check must *measure*. It also means sleep hours alone are a weak trigger (see next row) |
 | Dev et al. 2024 (#4), Table 4 | **Finding:** astronauts self-reported **6.4 h** sleep in early flight (SD 0.94, range 4–8) and 6.4 h in late flight (SD 1.21, range 3–8) | A "< 6 h sleep" trigger alone would fire on a large share of mission days, which breaks the crew-time budget. **Change:** short sleep triggers only *together with* low HRV or sleepiness ≥ 7, or on its own below 5 h |
 | Dev et al. 2024 (#4), Table 1 | **Finding:** pre-flight astronaut PVT reference (N = 24): **speed 5.25 (SD 0.24)**, **accuracy 0.97 (SD 0.04)**. In the paper, PVT speed = 10 − 1/RT (RT in s), so lower = faster; 5.25 means a mean reciprocal RT of ~4.75 s⁻¹ (roughly **210 ms**) | **Real astronaut numbers for the demo's preset baseline**, labeled "NASA ISS pre-flight reference (Dev et al. 2024)". Each astronaut's own pre-flight baseline replaces it in real use |

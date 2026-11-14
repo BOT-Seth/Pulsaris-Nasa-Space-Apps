@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
-import styles from "./SignalLock.module.css";
+import styles from "./Beacon.module.css";
 import { TestScreen } from "./TestScreen";
 import { ResultScreen } from "./ResultScreen";
-import { PVT, formatLength } from "./pvt";
-import { buildSession } from "./session";
+import { lapseLineFor } from "./pvt";
+import { buildSession, usesAdaptiveStop } from "./session";
 import type { Baseline, CountermeasureCardContent, SessionRecord, TestRun, Trigger } from "./types";
 
-export interface SignalLockFlowProps {
+export interface BeaconFlowProps {
   trigger: Trigger;
   /** "Why now" line from the status engine, e.g. "HRV 22% below your baseline". */
   triggerCause?: string;
@@ -20,8 +20,6 @@ export interface SignalLockFlowProps {
   baseline: Baseline | null;
   /** Earlier sessions, for the 2-Acts-in-24-h escalation rule. */
   history: SessionRecord[];
-  /** Test length. Default 3 min. Shorter only for development. */
-  durationMs?: number;
   /** Called once the result is known. The host saves it. */
   onComplete: (record: SessionRecord) => void;
   /** Close the flow (Done, Close, or quit before the test). */
@@ -47,11 +45,11 @@ const KSS = [
   "Very sleepy, fighting sleep",
 ];
 
-export function SignalLockFlow(props: SignalLockFlowProps) {
-  const durationMs = props.durationMs ?? PVT.durationMs;
+export function BeaconFlow(props: BeaconFlowProps) {
   const recent = props.recentSleepiness;
   const reuse =
     !!recent && Date.now() - new Date(recent.loggedAt).getTime() < REUSE_SLEEPINESS_MS ? recent.value : null;
+  const adaptive = usesAdaptiveStop(props.baseline);
 
   const firstStep: Step = props.showPrompt === false ? (reuse !== null ? "test" : "sleepiness") : "prompt";
   const [step, setStep] = useState<Step>(firstStep);
@@ -75,22 +73,21 @@ export function SignalLockFlow(props: SignalLockFlowProps) {
         sleepHours: props.sleepHoursLastNight ?? null,
         baseline: props.baseline,
         history: props.history,
-        durationMs,
       });
       setResult(built);
       setStep("result");
       props.onComplete(built.record);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sleepiness, props.baseline, props.history, props.trigger, durationMs],
+    [sleepiness, props.baseline, props.history, props.trigger],
   );
 
   if (step === "prompt") {
     return (
       <div className={styles.screen}>
-        <p className={styles.label}>ALERTNESS CHECK · {formatLength(durationMs).toUpperCase()}</p>
+        <p className={styles.label}>BEACON · ALERTNESS CHECK · {adaptive ? "UNDER 3 MIN" : "3 MIN"}</p>
         <h1 className={styles.title}>{props.triggerCause ?? "Quick alertness check"}</h1>
-        <p className={styles.body}>Tap anywhere as soon as a ring appears. That's it.</p>
+        <p className={styles.body}>Tap anywhere as soon as the beacon lights up. That's it.</p>
         <div className={styles.actions}>
           <button type="button" className={styles.primary} onClick={afterPrompt} autoFocus>
             Start
@@ -114,10 +111,10 @@ export function SignalLockFlow(props: SignalLockFlowProps) {
     return (
       <div className={styles.screen}>
         <p className={styles.label}>BEFORE YOU START</p>
-        <h1 className={styles.title} id="sl-kss">
+        <h1 className={styles.title} id="bc-kss">
           How sleepy are you right now?
         </h1>
-        <div className={styles.kss} role="radiogroup" aria-labelledby="sl-kss">
+        <div className={styles.kss} role="radiogroup" aria-labelledby="bc-kss">
           {KSS.map((words, i) => (
             <button
               key={i}
@@ -143,7 +140,14 @@ export function SignalLockFlow(props: SignalLockFlowProps) {
   }
 
   if (step === "test") {
-    return <TestScreen key={attempt} durationMs={durationMs} onDone={onTestDone} />;
+    return (
+      <TestScreen
+        key={attempt}
+        lapseLineMs={lapseLineFor(props.baseline)}
+        adaptive={adaptive}
+        onDone={onTestDone}
+      />
+    );
   }
 
   return result ? (

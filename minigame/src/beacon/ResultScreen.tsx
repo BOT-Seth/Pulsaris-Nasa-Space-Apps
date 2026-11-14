@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
-import styles from "./SignalLock.module.css";
+import styles from "./Beacon.module.css";
 import { StatusChip } from "./StatusChip";
-import { NASA_REFERENCE, toIndicatorStatus } from "./pvt";
+import { NASA_REFERENCE, formatClock, toIndicatorStatus } from "./pvt";
 import type { Baseline, CountermeasureCardContent, SessionRecord } from "./types";
 
 interface Props {
@@ -39,7 +39,8 @@ export function ResultScreen({ record, card, reasons, baseline, onDone, onRechec
       {reasons[0] && <p className={styles.body}>{reasons.join(" · ")}</p>}
       {scored && (
         <p className={styles.mono}>
-          Median {p.medianRtMs} ms · {p.lapses} lapses · {p.falseStarts} false start{p.falseStarts === 1 ? "" : "s"}
+          Median {p.medianRtMs} ms · {p.lapses} lapses · {p.falseStarts} false start{p.falseStarts === 1 ? "" : "s"} ·{" "}
+          {formatClock(p.durationSec * 1000)}
         </p>
       )}
 
@@ -109,24 +110,24 @@ export function ResultScreen({ record, card, reasons, baseline, onDone, onRechec
           </button>
           {open && (
             <dl className={styles.dl}>
+              <dt>Lapses + early taps</dt>
+              <dd>{p.lpfs}</dd>
+              <dt>Your lapse line</dt>
+              <dd>{p.lapseLineMs} ms</dd>
+              <dt>Length</dt>
+              <dd>
+                {formatClock(p.durationSec * 1000)}
+                {p.stoppedEarly ? " (stopped once the result was clear)" : ""}
+              </dd>
               <dt>Speed vs your baseline</dt>
               <dd>{p.vsBaselineSd === null ? "—" : `${p.vsBaselineSd > 0 ? "+" : ""}${p.vsBaselineSd} SD`}</dd>
-              <dt>Lapses (≥355 ms)</dt>
-              <dd>
-                {p.lapses}
-                {p.excessLapses !== null && ` (usual ${baseline?.meanLapses ?? "—"})`}
-              </dd>
-              <dt>False starts</dt>
-              <dd>{p.falseStarts}</dd>
-              <dt>Signals scored</dt>
-              <dd>{p.trials}</dd>
               <dt>You rated sleepiness</dt>
               <dd>{record.checkIn.sleepiness === null ? "—" : `${record.checkIn.sleepiness} / 9`}</dd>
               <dt>Baseline</dt>
               <dd>{baseline ? baseline.label : "Not set yet"}</dd>
-              <dt>1 SD</dt>
+              <dt>Method</dt>
               <dd>
-                {NASA_REFERENCE.speedSd} s⁻¹, from the {NASA_REFERENCE.label}
+                PVT-BA adaptive test (Basner 2022). Lapse line and SD from the {NASA_REFERENCE.label}.
               </dd>
             </dl>
           )}

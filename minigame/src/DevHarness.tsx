@@ -4,7 +4,7 @@
  */
 import { useMemo, useState } from "react";
 import {
-  SignalLockFlow,
+  BeaconFlow,
   computeBaseline,
   SAMPLE_BASELINE,
   causeLine,
@@ -12,10 +12,10 @@ import {
   StatusChip,
   type SessionRecord,
   type Trigger,
-} from "./signal-lock";
+} from "./beacon";
 import styles from "./DevHarness.module.css";
 
-const KEY = "signal-lock-dev-sessions";
+const KEY = "beacon-dev-sessions";
 
 function load(): SessionRecord[] {
   try {
@@ -47,7 +47,6 @@ export function DevHarness() {
   const [running, setRunning] = useState(false);
   const [trigger, setTrigger] = useState<Trigger>("low_hrv");
   const [mode, setMode] = useState<BaselineMode>("sample");
-  const [quick, setQuick] = useState(false);
   const [reuseKss, setReuseKss] = useState(false);
   const [sleepHours, setSleepHours] = useState(7.5);
   const [showPrompt, setShowPrompt] = useState(true);
@@ -60,7 +59,7 @@ export function DevHarness() {
 
   if (running) {
     return (
-      <SignalLockFlow
+      <BeaconFlow
         trigger={trigger}
         triggerCause={t.cause}
         showPrompt={showPrompt}
@@ -68,7 +67,6 @@ export function DevHarness() {
         sleepHoursLastNight={sleepHours}
         baseline={baseline}
         history={sessions}
-        durationMs={quick ? 30_000 : undefined}
         onComplete={(r) => {
           const next = [...sessions, r];
           setSessions(next);
@@ -90,7 +88,7 @@ export function DevHarness() {
   return (
     <main className={styles.page}>
       <p className={styles.dev}>DEV PAGE · stands in for the Pulsaris app · not shipped</p>
-      <h1 className={styles.h1}>Signal Lock</h1>
+      <h1 className={styles.h1}>Beacon</h1>
 
       <section className={"card " + styles.grid}>
         <label>
@@ -130,14 +128,10 @@ export function DevHarness() {
           <input type="checkbox" checked={reuseKss} onChange={(e) => setReuseKss(e.target.checked)} />
           Sleepiness logged &lt; 2 h ago (skip step)
         </label>
-        <label className={styles.check}>
-          <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} />
-          DEV 30 s test (scores not valid)
-        </label>
       </section>
 
       <button type="button" className={styles.go} onClick={() => setRunning(true)}>
-        Open Signal Lock
+        Open Beacon
       </button>
       {log && <p className={styles.note}>{log}</p>}
 

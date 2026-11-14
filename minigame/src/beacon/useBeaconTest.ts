@@ -1,17 +1,17 @@
 /**
- * The 3-minute test engine.
+ * The Beacon test engine: up to 3 min, usually much shorter (adaptive stop, see adaptive.ts).
  *
  * Timing notes (why it's built this way):
- * - The stimulus is shown by writing to the DOM directly, not through a React render,
+ * - The beacon is shown by writing to the DOM directly, not through a React render,
  *   so onset time is recorded at the moment the element changes.
  * - Responses use the input event's own timestamp (event.timeStamp), not the time the
- *   handler happened to run.
- * - Any constant device delay (touchscreen, display) is the same for the baseline,
- *   so it cancels out in scoring (own-baseline decision, 2026-11-14).
+ *   handler happened to run. Browser test: recorded median matched real tap timing to the ms.
+ * - Constant device delay (touchscreen, display) is handled by the lapse line (pvt.ts lapseLineFor).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PVT, nextIsiMs } from "./pvt";
-import type { TestRun, Trial } from "./types";
+import { PVT, nextIsiMs, scoreEvents } from "./pvt";
+import { adaptiveDecision } from "./adaptive";
+import type { Category, TestRun, Trial } from "./types";
 
 export type TestPhase = "ready" | "running" | "paused" | "confirm-quit" | "done";
 
@@ -22,21 +22,29 @@ export interface TestRefs {
   clock: HTMLSpanElement | null;
 }
 
+export interface BeaconTestOptions {
+  lapseLineMs: number;
+  /** Stop as soon as the result is clear (PVT-BA). Off while building a baseline. */
+  adaptive: boolean;
+  onDone: (run: TestRun) => void;
+}
+
 function eventTime(e: { timeStamp: number }): number {
   // Modern browsers give a high-resolution timestamp on the same clock as performance.now().
   const now = performance.now();
   return e.timeStamp > 0 && Math.abs(now - e.timeStamp) < 1_000 ? e.timeStamp : now;
 }
 
-export function useSignalLockTest(durationMs: number, onDone: (run: TestRun) => void) {
+export function useBeaconTest({ lapseLineMs, adaptive, onDone }: BeaconTestOptions) {
+  const capMs = PVT.durationMs;
   const [phase, setPhase] = useState<TestPhase>("ready");
   const els = useRef<TestRefs>({ ring: null, counter: null, message: null, clock: null });
 
   const trials = useRef<Trial[]>([]);
-  const falseStarts = useRef(0);
+  const falseStartTimes = useRef<number[]>([]);
   const runStartedAt = useRef(0); // performance.now() when the current running stretch began
   const elapsedBefore = useRef(0); // test time accumulated before the current stretch
-  const onset = useRef<number | null>(null); // performance.now() of the visible stimulus
+  const onset = useRef<number | null>(null); // performance.now() of the visible beacon
   const lastResponseAt = useRef(-Infinity);
   const pausedAt = useRef<number | null>(null);
   const timers = useRef<number[]>([]);
@@ -80,8 +88,19 @@ export function useSignalLockTest(durationMs: number, onDone: (run: TestRun) => 
     raf.current = requestAnimationFrame(tickCounter);
   };
 
+  const requestWakeLock = async () => {
+    try {
+      const nav = navigator as Navigator & {
+        wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
+      };
+      wakeLock.current = (await nav.wakeLock?.request("screen")) ?? null;
+    } catch {
+      wakeLock.current = null; // Not supported or denied: the test still runs.
+    }
+  };
+
   const finish = useCallback(
-    (complete: boolean, endedReason: TestRun["endedReason"]) => {
+    (complete: boolean, endedReason: TestRun["endedReason"], decided: Category | null = null) => {
       if (finished.current) return;
       finished.current = true;
       const ran = elapsed();
@@ -93,17 +112,39 @@ export function useSignalLockTest(durationMs: number, onDone: (run: TestRun) => 
       setP("done");
       onDone({
         trials: trials.current,
-        falseStarts: falseStarts.current,
-        elapsedMs: Math.min(ran, durationMs),
+        falseStarts: falseStartTimes.current.length,
+        elapsedMs: Math.min(ran, capMs),
         complete,
         endedReason,
+        decided,
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [durationMs, onDone],
+    [onDone],
   );
 
-  const showStimulus = () => {
+  /** After every scoring event: stop if the result is already clear. Returns true if finished. */
+  const checkStop = (): boolean => {
+    if (falseStartTimes.current.length > PVT.invalidFalseStarts) {
+      finish(true, "too-many-false-starts");
+      return true;
+    }
+    if (!adaptive) return false;
+    const decided = adaptiveDecision(scoreEvents(trials.current, falseStartTimes.current, lapseLineMs));
+    if (decided) {
+      finish(true, "decided", decided);
+      return true;
+    }
+    return false;
+  };
+
+  // Test-time position of the current beacon.
+  const onsetElapsed = () =>
+    elapsedBefore.current + ((onset.current ?? performance.now()) - runStartedAt.current);
+
+  const scheduleNext = () => later(showBeacon, nextIsiMs());
+
+  function showBeacon() {
     if (phaseRef.current !== "running") return;
     setMessage("");
     const ring = els.current.ring;
@@ -118,18 +159,11 @@ export function useSignalLockTest(durationMs: number, onDone: (run: TestRun) => 
       if (onset.current === null) return;
       trials.current.push({ onsetMs: onsetElapsed(), rtMs: null });
       hideRing();
-      setMessage("Tap as soon as the ring appears.");
+      if (checkStop()) return;
+      setMessage("Tap as soon as the beacon lights up.");
       scheduleNext();
     }, PVT.timeoutMs);
-  };
-
-  // Test-time position of the current stimulus.
-  const onsetElapsed = () =>
-    elapsedBefore.current + ((onset.current ?? performance.now()) - runStartedAt.current);
-
-  const scheduleNext = () => {
-    later(showStimulus, nextIsiMs());
-  };
+  }
 
   const respond = (t: number) => {
     if (phaseRef.current !== "running") return;
@@ -141,7 +175,7 @@ export function useSignalLockTest(durationMs: number, onDone: (run: TestRun) => 
       const at = onsetElapsed();
       clearTimers();
       if (rt < PVT.falseStartMinRtMs) {
-        falseStarts.current += 1;
+        falseStartTimes.current.push(at);
         hideRing();
         setMessage("Too early");
       } else {
@@ -149,60 +183,50 @@ export function useSignalLockTest(durationMs: number, onDone: (run: TestRun) => 
         // Freeze the counter on the RT (feedback), then hide.
         onset.current = null;
         if (els.current.counter) els.current.counter.textContent = String(Math.round(rt));
-        const ring = els.current.ring;
-        if (ring) ring.dataset.state = "frozen";
+        if (els.current.ring) els.current.ring.dataset.state = "frozen";
         later(() => {
           if (els.current.ring?.dataset.state === "frozen") hideRing();
         }, PVT.feedbackMs);
       }
+      if (checkStop()) return;
       scheduleNext();
     } else {
       // Tap while waiting = false start; restart the gap (MINIGAME.md §4.3).
-      falseStarts.current += 1;
+      falseStartTimes.current.push(elapsed());
       clearTimers();
       hideRing();
       setMessage("Too early");
+      if (checkStop()) return;
       later(() => setMessage(""), PVT.feedbackMs);
       scheduleNext();
     }
   };
 
   const updateClock = () => {
-    const left = Math.max(0, durationMs - elapsed());
+    const left = Math.max(0, capMs - elapsed());
     if (els.current.clock) {
       const s = Math.ceil(left / 1000);
       els.current.clock.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     }
-    if (left <= 0) finish(true, "finished");
+    if (left <= 0) finish(true, "time-cap");
   };
 
   const runStretch = () => {
     runStartedAt.current = performance.now();
     setP("running");
+    void requestWakeLock();
     if (clockTimer.current !== null) window.clearInterval(clockTimer.current);
     clockTimer.current = window.setInterval(updateClock, 200);
     updateClock();
     scheduleNext();
   };
 
-  const requestWakeLock = async () => {
-    try {
-      const nav = navigator as Navigator & {
-        wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
-      };
-      wakeLock.current = (await nav.wakeLock?.request("screen")) ?? null;
-    } catch {
-      wakeLock.current = null; // Not supported or denied: the test still runs.
-    }
-  };
-
   const start = () => {
     if (phaseRef.current !== "ready") return;
-    void requestWakeLock();
     runStretch();
   };
 
-  /** Stop the clock. Any stimulus on screen is discarded (not scored). */
+  /** Stop the clock. Any beacon on screen is discarded (not scored). */
   const pause = (next: "paused" | "confirm-quit") => {
     if (phaseRef.current !== "running") {
       if (phaseRef.current === "paused" || phaseRef.current === "confirm-quit") setP(next);
@@ -272,5 +296,5 @@ export function useSignalLockTest(durationMs: number, onDone: (run: TestRun) => 
     }
   };
 
-  return { phase, els, start, pause, resume, quit, onPointerDown, onKeyDown };
+  return { phase, els, capMs, start, pause, resume, quit, onPointerDown, onKeyDown };
 }

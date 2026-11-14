@@ -1,14 +1,16 @@
-# Cognitive Minigame: Ideas and Mechanics
+# Beacon: Cognitive Minigame Mechanics
 
-> **Scope (see [SCOPE.md](SCOPE.md)):** MVP = **Signal Lock (triggered only) + countermeasure card**. Orbit Breath is ⏸ stretch (an option on the card later). Concepts C, D, E, the radiation trigger, routine daily checks and extra gamification are in the parking lot. Those parts are kept below for reference but marked ⏸.
+> **Name:** **Beacon** (was "Signal Lock"). The astronaut taps as soon as the beacon lights up.
 >
-> **Status:** **Built** as a drop-in module: `minigame/src/signal-lock/` (see §8). **Visuals follow the team design system** in `docs/design/` (on the `mohammed-altaie` branch). Status words everywhere: **OK / Watch / Act / No data**.
+> **Scope (see [SCOPE.md](SCOPE.md)):** MVP = **Beacon (triggered only, adaptive length) + countermeasure card**. Orbit Breath is ⏸ stretch (an option on the card later). Concepts C, D, E, the radiation trigger, routine daily checks and extra gamification are in the parking lot. Those parts are kept below for reference but marked ⏸.
+>
+> **Status:** **Built** as a drop-in module: `minigame/src/beacon/` (see §8). **Visuals follow the team design system** in `docs/design/` (on the `mohammed-altaie` branch). Status words everywhere: **OK / Watch / Act / No data**.
 
 Part of the astronaut health monitoring app for the 2026 NASA Space Apps challenge "Create Health Monitoring Software for Astronauts on Space Missions". The challenge suggests prompting astronauts to "take measurements or complete specific actions from time to time", adding "a gamification system", and using color coding so a status reads at a glance. This minigame covers all three for fatigue and stress.
 
 ## 1. What the minigame is for
 
-When the health app sees signs of **sleepiness** or **poor HRV** (heart rate variability), it offers a short session (about **3.5 minutes**, touch tablet) that:
+When the health app sees signs of **sleepiness** or **poor HRV** (heart rate variability), it offers a short session (about **2 minutes** typical, touch tablet) that:
 
 1. **Assesses** how alert the astronaut is right now, compared with their own rested baseline.
 2. **Recovers** with one evidence-backed next action (the countermeasure card), chosen by the result.
@@ -37,7 +39,7 @@ Rules to stop nagging:
 
 ## 3. Concept shortlist
 
-### A. Signal Lock (vigilance / reaction time) ⭐ recommended assessment
+### A. Beacon (vigilance / reaction time) ⭐ built (was "Signal Lock")
 A **Psychomotor Vigilance Task (PVT)** in a game wrapper. The astronaut "holds a comms link". At random moments a signal appears, and they tap anywhere on the screen as fast as possible. A counter shows their reaction time.
 - **Measures:** sustained attention and reaction speed. This is the most sensitive standard measure of sleep loss. A 3-minute PVT (PVT-B) has been used in spaceflight research and in NASA's Cognition test battery.
 - **Space evidence (OSDR):** OSD-939 used a rat version of this exact test and found that space-type radiation lowered accuracy and increased impulsive early responses.
@@ -70,7 +72,7 @@ Stars in a constellation light up in order, and the astronaut repeats the order.
 
 **Decision (2026-11-14):** build **A + the countermeasure card**. B (Orbit Breath) is stretch: it adds up to 2 min of crew time, and without live sensors we can't show it improves HRV. C, D and E are parked (each adds crew time). If one comes back later, D goes first because it adds an impulse-control signal.
 
-## 4. Deep spec: the Signal Lock session (as built)
+## 4. Deep spec: the Beacon session (as built)
 
 ### 4.1 Session flow (fewest taps)
 
@@ -78,7 +80,7 @@ Stars in a constellation light up in order, and the astronaut repeats the order.
 Trigger / manual start
    │
    ▼
-[1] Prompt (≈5 s) ── why now + the one rule ("tap when a ring appears") · Start / Snooze 15·30·60
+[1] Prompt (≈5 s) ── why now + the one rule ("tap when the beacon lights up") · Start / Snooze 15·30·60
    │                 (skipped when the astronaut started the check themselves)
    ▼
 [2] Sleepiness (≈3 s) ── one tap on 1–9 picks AND continues
@@ -87,7 +89,7 @@ Trigger / manual start
 [3] "Tap anywhere to begin" ── the tap also puts the finger in place
    │
    ▼
-[4] Signal Lock test (3 min)
+[4] Beacon test ── stops as soon as the result is clear (PVT-BA), 3 min max
    │
    ▼
 [5] Result + countermeasure card ── status + ONE action up front; details one tap deep
@@ -96,55 +98,55 @@ Trigger / manual start
 
 The astronaut can pause or quit at any step. Partial data is saved and marked incomplete, never scored.
 
-**Time budget:** about 10 s of taps + 3 min test + about 10 s to read the card ≈ **3.5 min**, only when triggered.
+**Time budget:** about 10 s of taps + the test (**about 1 min 45 s on average**, 3 min max) + about 10 s to read the card ≈ **2 min typical**, only when triggered. Baseline-setting checks run the full 3 min.
 
 ### 4.2 Step 2: Sleepiness
 - Nine large stops (Karolinska anchors). One tap picks and moves on: no slider dragging, no separate "Next".
 - Stored with the session so the details can show self-rated vs. measured alertness. Self-ratings don't reliably track measured performance (Dev et al. 2024), so **only the test decides the band**.
 - Mood isn't asked here; it belongs to the daily check-in.
 
-### 4.3 Step 2: Signal Lock (assessment)
+### 4.3 Step 4: the Beacon test
 
 | Parameter | Value |
 |---|---|
-| Duration | 3 min (PVT-B style) |
-| Gap before each signal | Random, 1–4 s (uniform), so it can't be predicted |
+| Length | **Adaptive:** stops as soon as the result is clear (PVT-BA, Basner 2022). **3 min max** (PVT-B). Full 3 min while building a baseline |
+| Gap before each beacon | Random, 1–4 s (uniform), so it can't be predicted |
 | Response | Tap **anywhere** on screen (no aiming, works with hand drift in microgravity) |
 | Feedback per trial | Show the RT in ms for about 1 s after each tap |
-| Lapse | RT ≥ 355 ms (the PVT-B threshold; the 10-min PVT uses 500 ms) |
-| Personal lapse | RT > 2× the astronaut's own baseline median RT (definition from OSDR OSD-939). Tracked alongside the fixed threshold, so naturally slow or fast responders are judged fairly |
-| False start | Tap before the signal, or RT < 100 ms. Show a short "too early" message, then restart the gap timer |
-| No response | Signal times out at 30 s, counts as a lapse, and shows "Tap as soon as the ring appears." (No sound: shared quarters) |
-| Warm-up | First 3 trials are not scored |
+| Lapse | RT at or over **your lapse line** (below), or no response |
+| False start | Tap before the beacon, or RT < 100 ms. Show "Too early", then restart the gap timer |
+| No response | Beacon times out at 30 s, counts as a lapse, and shows "Tap as soon as the beacon lights up." (No sound: shared quarters) |
 | Finger bounce | A second tap within 150 ms of a response is ignored, not counted as a false start |
 | Extra fingers / palm | Only the first finger counts |
 | Keyboard | Space or Enter also responds (accessibility, desktop testing) |
 | Screen | Kept awake during the test where the browser allows it |
 
-**Metrics recorded:** scored trials, mean RT, median RT, mean 1/RT (speed, the most sensitive to sleep loss), lapses, personal lapses, false starts, false-start % (the "premature responding" measure from OSD-939), and slowing across the test (ms per minute).
+**Why adaptive (decided 2026-11-14):** a fixed 3 min was too long for crew time. Fixed tests shorter than 3 min miss moderate tiredness, which only shows later in a test (Roach et al. 2006 found 90 s weaker). PVT-BA keeps the 3-min test's accuracy but stops once it's sure. In its validation it averaged **1 min 43 s**, with alert people at about 95 s and clearly impaired people at about 76 s, and agreed "almost perfectly" with the full test (kappa 0.85).
 
-**Personal baseline (decided 2026-11-14: score against the astronaut's own baseline):**
-- **Why:** tablets add touch and screen delay that NASA's lab laptops didn't. Comparing tablet taps straight against NASA numbers would make everyone look slow. Measuring the baseline **on the same device** cancels that delay out.
-- Built from **3 rested sessions** (sleepiness ≤ 4 and slept ≥ 7 h), ideally before the mission. Until then the result is "Building your baseline", with no OK/Watch/Act judgement.
-- Rolling: the last 10 rested, complete, valid sessions.
-- **How far from normal counts as "slow":** 1 SD = **0.24 s⁻¹**, the spread of ISS astronauts' pre-flight PVT speed (Dev et al. 2024, Table 1). It's a between-person spread, so it's deliberately conservative for within-person change (fewer false alarms).
-- **Demo:** a **sample** baseline (about 280 ms, labeled "Sample demo baseline (not a real person)"). It's not NASA data. The NASA reference is shown as the source of the SD, not as anyone's baseline.
+**How it decides:** after every response, timeout or false start, it updates the probability that the full test would come out HIGH, MEDIUM or LOW, and stops when one passes **99.619%** (the paper's threshold). The likelihood ratios are the **conservative end** of the ranges in the paper's text (its exact values are only in a chart). Events in the first 30 s count half, since the paper says early ratios are "closer to 1". If 3 min pass without a decision, the full count decides.
 
-**No score number.** A 0–100 score adds nothing the band and one action don't already say. Dropped to keep the screen to what matters.
+**Your lapse line:** 355 ms is a lab number. A tablet adds touch and screen delay, and people differ in pace. The lapse line is therefore **355 ms + how much slower your rested baseline median is than the NASA ISS reference (≈ 211 ms, from Dev et al. 2024 Table 1)**, never below 355. Example: the sample baseline (275 ms) gives a 419 ms line.
 
-**Bands** (shown as OK / Watch / Act with icon + word):
+**Personal baseline:**
+- Built from **3 rested, full-length checks** (sleepiness ≤ 4 and slept ≥ 7 h), ideally before the mission. Until then: "Building your baseline", no OK/Watch/Act judgement.
+- Rolling: the last 10 rested, complete, valid, full-length checks.
+- **Demo:** a **sample** baseline (275 ms median, labeled "Sample demo baseline (not a real person)"). It's not NASA data.
 
-| Band | Rule | Meaning |
+**Metrics recorded:** responses, mean and median RT, mean 1/RT (speed), lapses, false starts, lapses + false starts, the lapse line used, test length, and whether it stopped early. Speed vs. baseline (in SD of 0.24 s⁻¹, Dev et al. 2024) is shown in Details for information only.
+
+**No score number.** The band and one action already say it all.
+
+**Bands** (PVT-BA categories, shown as OK / Watch / Act with icon + word):
+
+| Band | PVT-BA category (lapses + false starts over a full 3 min) | Meaning |
 |---|---|---|
-| OK | Speed within 1 SD of baseline **and** fewer than 3 extra lapses | Alert |
-| Watch | Speed 1–1.5 SD below baseline **or** 3–5 more lapses than usual | Reduced, take a countermeasure |
-| Act | Speed **≥ 1.5 SD** below baseline **or** 6+ more lapses than usual **or** ≥ 4 false starts | Impaired, put off critical tasks and rest |
-| Building baseline | Fewer than 3 rested sessions | No judgement yet |
-| Not scored | > 8 false starts, fewer than 15 scored signals, or ended early | Try again when ready |
+| OK | HIGH: ≤ 6 | Alert |
+| Watch | MEDIUM: 7–16 | Reduced, take a countermeasure |
+| Act | LOW: 17+ | Impaired, put off critical tasks and rest |
+| Building baseline | Fewer than 3 rested checks | No judgement yet |
+| Not scored | > 8 false starts, or ended early | Try again when ready |
 
-**Lapses are compared with your usual count, not used raw.** The 355 ms line is a lab number. On a tablet, device delay pushes some normal taps over it. So the band uses **lapses above the baseline's average** ("extra lapses"). The 3 and 6 cutoffs are the original MINIGAME numbers (≤ 2 OK, 3–5 Watch, ≥ 6 Act). The raw 355 ms count is still shown in the details.
-
-The 1.5 SD cutoff matches the "low score" line NASA's ISS cognition study used. In that study, 20% of in- and post-flight PVT speed scores crossed it (Dev et al. 2024).
+When the test stops early, the band is the category it was 99.6% sure of. So "12 lapses or early taps in 1:39" can be Act: at that pace the full 3 min would pass 17.
 
 ### ⏸ 4.4 Orbit Breath (stretch: not built)
 
@@ -169,10 +171,10 @@ One primary action in large text, at most two lines below it, and the source. Ab
 Source shown on Watch/Act: NASA HRP *Risk from Inadequate Sleep and Irregular Schedules*.
 
 ### 4.6 Result, record, escalation
-**Up front:** status chip + headline, the cause ("Speed 1.6 SD slower than your baseline"), one mono line (median · lapses · false starts), then the card.
-**One tap deeper (Details):** speed vs. baseline in SD, lapses vs. usual, personal lapses, false starts, slowing across the test, signals scored, self-rated sleepiness, baseline source, and how "normal" is measured.
+**Up front:** status chip + headline, the cause ("12 lapses or early taps in 1:39"), one mono line (median · lapses · false starts · length), then the card.
+**One tap deeper (Details):** lapses + early taps, your lapse line, length (and whether it stopped early), speed vs. baseline, self-rated sleepiness, baseline source, and the method.
 
-**Record handed to the app** (`SessionRecord` in `minigame/src/signal-lock/types.ts`):
+**Record handed to the app** (`SessionRecord` in `minigame/src/beacon/types.ts`):
 ```json
 {
   "sessionId": "uuid",
@@ -181,11 +183,11 @@ Source shown on Watch/Act: NASA HRP *Risk from Inadequate Sleep and Irregular Sc
   "checkIn": { "sleepiness": 1, "sleepinessReused": false },
   "rested": true,
   "pvt": {
-    "durationSec": 180, "trials": 0, "medianRtMs": 0, "meanRtMs": 0,
-    "meanSpeed": 0.0, "lapses": 0, "personalLapses": 0, "falseStarts": 0,
-    "falseStartPct": 0.0, "slopeMsPerMin": 0.0,
+    "durationSec": 98, "stoppedEarly": true, "trials": 0, "medianRtMs": 0, "meanRtMs": 0,
+    "meanSpeed": 0.0, "lapses": 0, "falseStarts": 0, "lpfs": 0, "lapseLineMs": 419,
     "band": "ok | watch | act | baseline | invalid",
-    "vsBaselineSd": 0.0, "excessLapses": 0, "baselineSource": "own | sample | null"
+    "category": "high | medium | low | null",
+    "vsBaselineSd": 0.0, "baselineSource": "own | sample | null"
   },
   "recovery": { "type": "countermeasure | none" },
   "recommendation": "the card's primary action",
@@ -210,7 +212,7 @@ The challenge suggests gamification, but rewarding a **high score** can push a t
 - **Optional crew-level goals** ("crew completed 90% of checks this week") with **no** individual leaderboard of alertness scores.
 
 ### 4.8 Touch and microgravity considerations
-- Tap anywhere for Signal Lock, so the astronaut doesn't have to aim while their body drifts.
+- Tap anywhere for Beacon, so the astronaut doesn't have to aim while their body drifts.
 - Large touch targets everywhere else. Assume the tablet may be held, strapped to a thigh, or Velcroed to a wall.
 - Hold-and-lift for breathing is chosen because it's forgiving of imprecise touches.
 - Sound and haptics should be optional (shared quarters, sleeping crewmates).
@@ -220,13 +222,13 @@ The challenge suggests gamification, but rewarding a **high score** can push a t
 - **Interrupted session** (alarm, comms call): pause, then resume if within 2 min, otherwise mark incomplete and don't score.
 - **Too many false starts** (> 8): stop and show "session invalid, try again when ready" rather than a misleading score.
 - **Baseline drift** over a long mission: only rested sessions update the baseline, so gradual decline isn't hidden.
-- **Practice effect:** early sessions improve just from practice. The warm-up trials and the pre-flight baseline sessions absorb most of this.
+- **Practice effect:** the PVT has little to no practice effect (Basner 2022), and the pre-flight baseline checks absorb what remains. Events in the first 30 s count half in the stopping rule.
 
 ## 5. Hackathon scope
 
 **MVP (built):**
-- Prompt → sleepiness → test → result + countermeasure card
-- Own-baseline scoring, sample demo baseline, escalation flags
+- Prompt → sleepiness → adaptive test → result + countermeasure card
+- PVT-BA stopping and bands, personal lapse line, sample demo baseline, escalation flags
 - Session record handed to the app (the app stores it)
 
 **Stretch:**
@@ -234,7 +236,7 @@ The challenge suggests gamification, but rewarding a **high score** can push a t
 - Systems Check (go/no-go) as a second assessment
 
 ## 6. Open questions for the team
-1. **Thresholds:** the bands are starting points. Tune after a few real sessions on the demo tablet.
+1. **Tune on the real tablet:** run 3 rested baseline checks on the demo tablet and confirm the lapse line looks sensible.
 2. **Crew medical officer / flight surgeon flagging:** a logged flag only in the demo (no real messages).
 
 ## 7. Background references
@@ -243,11 +245,13 @@ The challenge suggests gamification, but rewarding a **high score** can push a t
 - Basner et al. (2015): NASA "Cognition" test battery for spaceflight
 - Lehrer & Gevirtz (2014): HRV biofeedback / resonance-frequency breathing, about 6 breaths/min
 - Karolinska Sleepiness Scale (1–9) for the self-report check-in
-- Dev et al. (2024), *Frontiers in Physiology*: NASA Cognition battery in 25 ISS astronauts; source of the 1.5 SD cutoff, the pre-flight PVT reference, and in-flight sleep hours
+- Basner M (2022). Ultra-short objective alertness assessment: an adaptive duration version of the 3 minute PVT (PVT-BA). *Sleep Advances* 3(1):zpac038. doi:10.1093/sleepadvances/zpac038: the stopping rule, threshold and HIGH/MEDIUM/LOW bands
+- Roach GD, Dawson D, Lamond N (2006). Can a shorter psychomotor vigilance task be used as a reasonable substitute for the ten-minute psychomotor vigilance task? *Chronobiology International*. doi:10.1080/07420520601067931: a 90-s PVT was less sensitive (why we didn't just shorten it)
+- Dev et al. (2024), *Frontiers in Physiology*: NASA Cognition battery in 25 ISS astronauts; source of the ≈ 211 ms reference used in the lapse line, the speed SD, and in-flight sleep hours
 - NASA OSDR studies OSD-939 (rat PVT after proton radiation), OSD-618 and OSD-479 (combined space stressors → cognitive deficits), OSD-1018 (isolation + radiation → motor learning). See RESEARCH.md for what each contains and how to use it
 
 ## 8. Build and integration
-**Where:** `minigame/` is a small Vite + React + TypeScript project (the roadmap stack). **The drop-in module is `minigame/src/signal-lock/`**. The rest (`DevHarness.tsx`, `main.tsx`, `styles/base.css`) is a dev page that stands in for the app.
+**Where:** `minigame/` is a small Vite + React + TypeScript project (the roadmap stack). **The drop-in module is `minigame/src/beacon/`**. The rest (`DevHarness.tsx`, `main.tsx`, `styles/base.css`) is a dev page that stands in for the app.
 
 **Run it:**
 ```bash
@@ -258,10 +262,10 @@ npm test         # scoring rules
 ```
 
 **Put it in the app (roadmap items 7–8):**
-1. Copy `minigame/src/signal-lock/` to `src/features/signal-lock/`. It needs `react`, `lucide-react` and `tokens.css` loaded globally, nothing else.
-2. Route `/check/signal-lock` renders `<SignalLockFlow …/>`:
+1. Copy `minigame/src/beacon/` to `src/features/beacon/`. It needs `react`, `lucide-react` and `tokens.css` loaded globally, nothing else.
+2. Route `/check/beacon` renders `<BeaconFlow …/>`:
    ```tsx
-   <SignalLockFlow
+   <BeaconFlow
      trigger="low_hrv"                       // from the status engine
      triggerCause="HRV 22% below your baseline (sleep window)"
      recentSleepiness={checkIn.sleepiness}    // { value, loggedAt } or null
@@ -277,4 +281,8 @@ npm test         # scoring rules
 3. Home's **Alertness** row: `toIndicatorStatus(last.pvt.band)` for the chip, `causeLine(last, [])` for the text.
 4. `StatusChip` and the buttons inside the module are stand-ins. Swap them for the app's components when those exist (same tokens, same look).
 
-**Design-doc differences to know about:** design doc 06 S6 shows "Speed 1.2 SD slower than NASA ISS pre-flight reference". The built version says "**than your baseline**" (own-baseline decision). The NASA reference appears in Details as the source of the SD. The separate Instructions screen (S5) is folded into the prompt and the "Tap anywhere to begin" screen, which saves a tap.
+**Design-doc differences to know about (doc 06 S5/S6):**
+- The name is **Beacon**, and the route is `/check/beacon` (was `/check/signal-lock`).
+- The test is **adaptive** (usually under 2 min), so the prompt says "under 3 min", not "3 min".
+- The result's cause line is "12 lapses or early taps in 1:39", not "Speed 1.2 SD slower than NASA ISS pre-flight reference". Speed vs. baseline is in Details only.
+- The separate Instructions screen is folded into the prompt and the "Tap anywhere to begin" screen, which saves a tap.

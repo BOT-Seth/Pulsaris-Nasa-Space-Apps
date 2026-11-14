@@ -1,10 +1,13 @@
 /**
- * Signal Lock: public types.
+ * Beacon: public types.
  * Mechanics source: docs/scope/MINIGAME.md (§2 triggers, §4 session).
  */
 
 /** Result band. Shown to the astronaut as OK / Watch / Act (design doc 09 §2). */
 export type Band = "ok" | "watch" | "act" | "baseline" | "invalid";
+
+/** PVT-BA performance category (Basner 2022). HIGH → OK, MEDIUM → Watch, LOW → Act. */
+export type Category = "high" | "medium" | "low";
 
 /** Status vocabulary used by the rest of the app (design doc 05 §5). */
 export type IndicatorStatusValue = "ok" | "watch" | "act" | "none";
@@ -25,6 +28,13 @@ export interface Trial {
   rtMs: number | null;
 }
 
+/** One scoring event: a response to the beacon, a timeout, or a false start. */
+export interface ScoreEvent {
+  atMs: number;
+  /** Lapse or false start ("LpFS" in Basner 2022). */
+  lpfs: boolean;
+}
+
 /** Raw output of one test run. */
 export interface TestRun {
   trials: Trial[];
@@ -32,30 +42,30 @@ export interface TestRun {
   /** Test time actually run, ms (pauses excluded). */
   elapsedMs: number;
   complete: boolean;
-  endedReason: "finished" | "quit" | "paused-too-long";
+  endedReason: "decided" | "time-cap" | "too-many-false-starts" | "quit" | "paused-too-long";
+  /** Set when the adaptive rule stopped the test early. */
+  decided: Category | null;
 }
 
 export interface PvtMetrics {
-  /** Scored trials (warm-up excluded, timeouts included). */
+  /** Responses + timeouts. */
   trials: number;
   medianRtMs: number;
   meanRtMs: number;
-  /** Mean response speed, 1/RT in s⁻¹ (higher = faster). Same scale as Dev et al. 2024 SD. */
+  /** Mean response speed, 1/RT in s⁻¹ (higher = faster). */
   meanSpeed: number;
-  /** RT ≥ 355 ms or no response (PVT-B, Basner et al. 2011). */
+  /** RT at or over the lapse line, or no response. */
   lapses: number;
-  /** RT > 2× own baseline median (OSDR OSD-939 definition). Null without a baseline. */
-  personalLapses: number | null;
   falseStarts: number;
-  falseStartPct: number;
-  /** Change in RT across the test, ms per minute (positive = slowing down). */
-  slopeMsPerMin: number;
+  /** Lapses + false starts, the PVT-BA outcome. */
+  lpfs: number;
+  /** Lapse line used, ms: 355 + device/personal offset from the baseline. */
+  lapseLineMs: number;
 }
 
 /** A person's normal, measured on the same device. */
 export interface Baseline {
   meanSpeed: number;
-  meanLapses: number;
   medianRtMs: number;
   /** Number of rested sessions it came from. */
   n: number;
@@ -65,11 +75,10 @@ export interface Baseline {
 
 export interface Classification {
   band: Band;
-  /** Speed vs baseline in SDs (negative = slower). Null without a baseline. */
+  category: Category | null;
+  /** Speed vs baseline in SDs (negative = slower). Info only. Null without a baseline. */
   vsBaselineSd: number | null;
-  /** Lapses above the baseline's average. Null without a baseline. */
-  excessLapses: number | null;
-  /** Plain-language reasons, worst first. Used for the cause line. */
+  /** Plain-language reason for the result. */
   reasons: string[];
 }
 
@@ -90,9 +99,10 @@ export interface SessionRecord {
   rested: boolean;
   pvt: PvtMetrics & {
     durationSec: number;
+    stoppedEarly: boolean;
     band: Band;
+    category: Category | null;
     vsBaselineSd: number | null;
-    excessLapses: number | null;
     baselineSource: Baseline["source"] | null;
   };
   recovery: { type: "countermeasure" | "none" };
