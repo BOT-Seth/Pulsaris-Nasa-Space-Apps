@@ -1,17 +1,17 @@
 # Cognitive Minigame: Ideas and Mechanics
 
-> **Scope (see [SCOPE.md](SCOPE.md)):** MVP = **Signal Lock (triggered only) + optional 2-min Orbit Breath**. Concepts C, D, E, the radiation trigger, routine daily checks and extra gamification are in the parking lot. Those parts are kept below for reference but marked ⏸.
+> **Scope (see [SCOPE.md](SCOPE.md)):** MVP = **Signal Lock (triggered only) + countermeasure card**. Orbit Breath is ⏸ stretch (an option on the card later). Concepts C, D, E, the radiation trigger, routine daily checks and extra gamification are in the parking lot. Those parts are kept below for reference but marked ⏸.
 >
-> **Status:** Ideas and mechanics only. **Visuals follow the team design system** in `docs/design/` (on the `mohammed-altaie` branch); nothing here sets colors, art, layout or animation style. Names below are working titles.
+> **Status:** **Built** as a drop-in module: `minigame/src/signal-lock/` (see §8). **Visuals follow the team design system** in `docs/design/` (on the `mohammed-altaie` branch). Status words everywhere: **OK / Watch / Act / No data**.
 
 Part of the astronaut health monitoring app for the 2026 NASA Space Apps challenge "Create Health Monitoring Software for Astronauts on Space Missions". The challenge suggests prompting astronauts to "take measurements or complete specific actions from time to time", adding "a gamification system", and using color coding so a status reads at a glance. This minigame covers all three for fatigue and stress.
 
 ## 1. What the minigame is for
 
-When the health app sees signs of **sleepiness** or **poor HRV** (heart rate variability), it offers a short session (about 5–7 minutes, touch tablet) that:
+When the health app sees signs of **sleepiness** or **poor HRV** (heart rate variability), it offers a short session (about **3.5 minutes**, touch tablet) that:
 
 1. **Assesses** how alert the astronaut is right now, compared with their own rested baseline.
-2. **Recovers** with an activity matched to the problem: paced breathing for low HRV and stress, or fatigue countermeasures for sleepiness.
+2. **Recovers** with one evidence-backed next action (the countermeasure card), chosen by the result.
 3. **Logs** the result back to the health app, where it shows up in trend charts and color-coded status, and escalates if needed.
 
 What it should **not** do: claim a game cures sleep debt. For real sleepiness the game's job is to measure honestly and point to real countermeasures (sleep, a nap, light, putting off critical tasks). A short burst of engagement only masks fatigue for a while.
@@ -31,7 +31,7 @@ All thresholds are **starting points** to tune later. They are compared with the
 | ⏸ Routine | Once a day at a fixed time, to build the baseline and trend | Parked: costs 3 min a day of crew time. The baseline builds from triggered and pre-task sessions instead |
 
 Rules to stop nagging:
-- At most one *prompted* session every 3 h unless the last result was red.
+- At most one *prompted* session every 3 h unless the last result was Act.
 - The astronaut can snooze (15 / 30 / 60 min). Snoozes are logged.
 - Never interrupt during a flagged critical activity. Queue the prompt instead.
 
@@ -44,7 +44,7 @@ A **Psychomotor Vigilance Task (PVT)** in a game wrapper. The astronaut "holds a
 - **Pros:** Validated, short, almost no learning curve, easy to compare with a baseline, works with a tap anywhere (good in microgravity).
 - **Cons:** Repetitive. The game wrapper and feedback have to carry the engagement.
 
-### B. Orbit Breath (paced breathing) ⭐ recommended recovery
+### ⏸ B. Orbit Breath (paced breathing): stretch, offered from the countermeasure card later
 A guided breathing pacer at about **6 breaths per minute** (resonance-frequency breathing). This pace reliably raises short-term HRV and calms the body. The astronaut **holds a finger on the screen while inhaling and lifts it to exhale**, so the app can measure how well they follow the rhythm.
 - **Measures:** how closely they follow the rhythm. HRV isn't measured during breathing (no live sensor hookup).
 - **Pros:** Strong evidence, no equipment needed, doubles as a stress tool any time.
@@ -68,42 +68,40 @@ Stars in a constellation light up in order, and the astronaut repeats the order.
 - **Pros:** Intuitive and on-theme. Working memory matters for following procedures.
 - **Cons:** Less sensitive to sleep loss than PVT. Sessions vary in length.
 
-**Recommendation:** build **A + B as one session flow** (spec below). C, D and E are parked (each adds crew time). If one comes back later, D goes first because it adds an impulse-control signal.
+**Decision (2026-11-14):** build **A + the countermeasure card**. B (Orbit Breath) is stretch: it adds up to 2 min of crew time, and without live sensors we can't show it improves HRV. C, D and E are parked (each adds crew time). If one comes back later, D goes first because it adds an impulse-control signal.
 
-## 4. Deep spec: the "Recalibrate" session (Signal Lock + Orbit Breath)
+## 4. Deep spec: the Signal Lock session (as built)
 
-### 4.1 Session flow
+### 4.1 Session flow (fewest taps)
 
 ```
 Trigger / manual start
    │
    ▼
-[1] Check-in (≈15 s)  ── sleepiness 1–9, optional mood tag
+[1] Prompt (≈5 s) ── why now + the one rule ("tap when a ring appears") · Start / Snooze 15·30·60
+   │                 (skipped when the astronaut started the check themselves)
+   ▼
+[2] Sleepiness (≈3 s) ── one tap on 1–9 picks AND continues
+   │                 (skipped if logged in the check-in < 2 h ago)
+   ▼
+[3] "Tap anywhere to begin" ── the tap also puts the finger in place
    │
    ▼
-[2] Signal Lock (3 min) ── alertness assessment
+[4] Signal Lock test (3 min)
    │
    ▼
-[3] Result + branch
-   ├── Low-HRV / stress trigger ──► [4a] Orbit Breath (2 min, optional)
-   ├── Sleepiness trigger ────────► [4b] Countermeasure card (+ optional 1–2 min breathing)
-   └── Routine / pre-task ────────► skip to [5]
-   │
-   ▼
-[5] Summary + log to health app (+ escalation if needed)
-   │
-   ▼
-[6] Follow-up re-check scheduled (sleepiness branch: 30–60 min after nap/rest)
+[5] Result + countermeasure card ── status + ONE action up front; details one tap deep
+       Done · Re-check in 60 min (Watch/Act) · Try again (if not scored)
 ```
 
-The astronaut can quit at any step. Partial data is saved and marked incomplete.
+The astronaut can pause or quit at any step. Partial data is saved and marked incomplete, never scored.
 
-**Time budget:** check-in ≤ 15 s + Signal Lock 3 min + breathing ≤ 2 min (optional) ≈ **5 min worst case**, and it only happens when triggered.
+**Time budget:** about 10 s of taps + 3 min test + about 10 s to read the card ≈ **3.5 min**, only when triggered.
 
-### 4.2 Step 1: Check-in
-- One slider: sleepiness 1 (extremely alert) to 9 (fighting sleep).
-- Optional quick mood tag (calm / stressed / irritable / low / fine).
-- Takes 15 seconds or less. It is stored with the session and shows how well the astronaut's own sense matches their measured performance. Fatigued people tend to underrate their impairment, which is useful to show them.
+### 4.2 Step 2: Sleepiness
+- Nine large stops (Karolinska anchors). One tap picks and moves on: no slider dragging, no separate "Next".
+- Stored with the session so the details can show self-rated vs. measured alertness. Self-ratings don't reliably track measured performance (Dev et al. 2024), so **only the test decides the band**.
+- Mood isn't asked here; it belongs to the daily check-in.
 
 ### 4.3 Step 2: Signal Lock (assessment)
 
@@ -116,35 +114,39 @@ The astronaut can quit at any step. Partial data is saved and marked incomplete.
 | Lapse | RT ≥ 355 ms (the PVT-B threshold; the 10-min PVT uses 500 ms) |
 | Personal lapse | RT > 2× the astronaut's own baseline median RT (definition from OSDR OSD-939). Tracked alongside the fixed threshold, so naturally slow or fast responders are judged fairly |
 | False start | Tap before the signal, or RT < 100 ms. Show a short "too early" message, then restart the gap timer |
-| No response | Signal times out at 30 s, counts as a lapse, and gives a stronger prompt (sound or haptic) |
+| No response | Signal times out at 30 s, counts as a lapse, and shows "Tap as soon as the ring appears." (No sound: shared quarters) |
 | Warm-up | First 3 trials are not scored |
+| Finger bounce | A second tap within 150 ms of a response is ignored, not counted as a false start |
+| Extra fingers / palm | Only the first finger counts |
+| Keyboard | Space or Enter also responds (accessibility, desktop testing) |
+| Screen | Kept awake during the test where the browser allows it |
 
-**Metrics recorded:** trial count, mean RT, median RT, mean 1/RT (speed, the most sensitive to sleep loss), fastest and slowest 10%, lapse count, personal-lapse count, false-start count, false-start % (the "premature responding" measure from OSD-939), and the slope (did they get worse across the 3 min?).
+**Metrics recorded:** scored trials, mean RT, median RT, mean 1/RT (speed, the most sensitive to sleep loss), lapses, personal lapses, false starts, false-start % (the "premature responding" measure from OSD-939), and slowing across the test (ms per minute).
 
-**Personal baseline:**
-- Set **before the mission** from **3 rested sessions** (sleepiness ≤ 4 and slept ≥ 7 h the night before). Pre-flight baselines are standard for spaceflight cognitive testing, and this keeps in-mission crew time to triggered checks only. Until then, results are shown as "building baseline" with no red/yellow judgment.
-- In the mission, any session that happens to be rested (e.g., a pre-task check) updates a rolling baseline of the last 10 rested sessions.
-- **Demo:** a preset baseline built from **real NASA data**: pre-flight PVT scores from 24 ISS astronauts (speed 5.25, SD 0.24; accuracy 0.97, SD 0.04; Dev et al. 2024, Table 1). It's labeled as a reference baseline, not the user's own.
-- **Why self-report isn't enough:** in the same study, astronauts' self-rated sleep and alertness had **no clear link** to their test scores. The check-in slider gives context, but only the measured test decides the band.
+**Personal baseline (decided 2026-11-14: score against the astronaut's own baseline):**
+- **Why:** tablets add touch and screen delay that NASA's lab laptops didn't. Comparing tablet taps straight against NASA numbers would make everyone look slow. Measuring the baseline **on the same device** cancels that delay out.
+- Built from **3 rested sessions** (sleepiness ≤ 4 and slept ≥ 7 h), ideally before the mission. Until then the result is "Building your baseline", with no OK/Watch/Act judgement.
+- Rolling: the last 10 rested, complete, valid sessions.
+- **How far from normal counts as "slow":** 1 SD = **0.24 s⁻¹**, the spread of ISS astronauts' pre-flight PVT speed (Dev et al. 2024, Table 1). It's a between-person spread, so it's deliberately conservative for within-person change (fewer false alarms).
+- **Demo:** a **sample** baseline (about 280 ms, labeled "Sample demo baseline (not a real person)"). It's not NASA data. The NASA reference is shown as the source of the SD, not as anyone's baseline.
 
-**Alertness score (0–100), first version:**
-- Start at 100.
-- Subtract points for speed below baseline (in baseline SDs), for each lapse, and for each false start.
-- Exact weights are for the team to tune with playtest data. Show the parts of the score, not just the number.
+**No score number.** A 0–100 score adds nothing the band and one action don't already say. Dropped to keep the screen to what matters.
 
-**Status bands** (the colors themselves wait for the design):
+**Bands** (shown as OK / Watch / Act with icon + word):
 
-| Band | Rule (starting point) | Meaning |
+| Band | Rule | Meaning |
 |---|---|---|
-| Green | Speed within 1 SD of baseline **and** lapses ≤ 2 | Alert |
-| Yellow | Speed 1–1.5 SD below baseline **or** 3–5 lapses | Reduced, consider countermeasures |
-| Red | Speed **≥ 1.5 SD** below baseline **or** ≥ 6 lapses **or** ≥ 4 false starts | Impaired, put off critical tasks and rest |
+| OK | Speed within 1 SD of baseline **and** fewer than 3 extra lapses | Alert |
+| Watch | Speed 1–1.5 SD below baseline **or** 3–5 more lapses than usual | Reduced, take a countermeasure |
+| Act | Speed **≥ 1.5 SD** below baseline **or** 6+ more lapses than usual **or** ≥ 4 false starts | Impaired, put off critical tasks and rest |
+| Building baseline | Fewer than 3 rested sessions | No judgement yet |
+| Not scored | > 8 false starts, fewer than 15 scored signals, or ended early | Try again when ready |
+
+**Lapses are compared with your usual count, not used raw.** The 355 ms line is a lab number. On a tablet, device delay pushes some normal taps over it. So the band uses **lapses above the baseline's average** ("extra lapses"). The 3 and 6 cutoffs are the original MINIGAME numbers (≤ 2 OK, 3–5 Watch, ≥ 6 Act). The raw 355 ms count is still shown in the details.
 
 The 1.5 SD cutoff matches the "low score" line NASA's ISS cognition study used. In that study, 20% of in- and post-flight PVT speed scores crossed it (Dev et al. 2024).
 
-Every band must also carry a text label and an icon, not just a color.
-
-### 4.4 Step 4a: Orbit Breath (recovery for low HRV and stress)
+### ⏸ 4.4 Orbit Breath (stretch: not built)
 
 | Parameter | Value |
 |---|---|
@@ -155,45 +157,47 @@ Every band must also carry a text label and an icon, not just a color.
 | Adherence metric | Average gap between their hold/lift timing and the pacer, as "% in sync" |
 **HRV during breathing:** not measured. There's no live sensor hookup (excluded in SCOPE.md). Log adherence only, and **never** show made-up HRV numbers.
 
-### 4.5 Step 4b: Countermeasure card (sleepiness branch)
-A short list of next actions, chosen by the result band and the mission schedule (if it's available):
-- **Green/Yellow:** short movement break, bright light, water, and caffeine **only if it fits the flight surgeon's plan and is far enough from the next sleep period**.
-- **Yellow/Red:** take a nap if the schedule allows (keep it short, about 20–30 min, to avoid grogginess). Put off or double-check critical tasks.
-- **Red:** advise rest. Flag it to the crew medical officer. Offer a re-check after rest.
-- An optional 1–2 min Orbit Breath is offered for winding down before a nap.
+### 4.5 Countermeasure card (the MVP recovery step)
+One primary action in large text, at most two lines below it, and the source. About 10 s to read.
 
-The wording of countermeasures should be reviewed against NASA HRP fatigue and sleep resources before the demo.
+| Band | Primary action | Also | Flags |
+|---|---|---|---|
+| OK | "You're alert. No action needed." | — | — |
+| Watch | "Take a short movement break in bright light." (Before a critical task: "Double-check each step of the task before you start.") | Caffeine only if it fits your plan and isn't close to your next sleep · Double-check critical tasks today | — |
+| Act | "Nap 20–30 min if your schedule allows." (Before a critical task: "Postpone the task, or have each step double-checked.") | Postpone or double-check critical tasks · Re-check after rest | **Crew medical officer flagged.** Plus "Marked for flight surgeon review" when escalated |
 
-### 4.6 Step 5: Summary, logging, escalation
-**Summary screen shows, up front:** the band + label and **one recommended next action**. That's it.
-**One tap deeper:** score, its parts (speed vs. baseline, lapses, false starts), self-rated vs. measured sleepiness, and recovery adherence or HRV change.
+Source shown on Watch/Act: NASA HRP *Risk from Inadequate Sleep and Irregular Schedules*.
 
-**Record saved to the health app (draft schema):**
+### 4.6 Result, record, escalation
+**Up front:** status chip + headline, the cause ("Speed 1.6 SD slower than your baseline"), one mono line (median · lapses · false starts), then the card.
+**One tap deeper (Details):** speed vs. baseline in SD, lapses vs. usual, personal lapses, false starts, slowing across the test, signals scored, self-rated sleepiness, baseline source, and how "normal" is measured.
+
+**Record handed to the app** (`SessionRecord` in `minigame/src/signal-lock/types.ts`):
 ```json
 {
   "sessionId": "uuid",
   "timestamp": "ISO-8601",
-  "trigger": "low_hrv | short_sleep | long_wake | self_report | pre_task | radiation_event | routine | manual",
-  "checkIn": { "sleepiness": 1-9, "mood": "string|null" },
+  "trigger": "low_hrv | short_sleep | long_wake | self_report | pre_task | manual",
+  "checkIn": { "sleepiness": 1, "sleepinessReused": false },
+  "rested": true,
   "pvt": {
     "durationSec": 180, "trials": 0, "medianRtMs": 0, "meanRtMs": 0,
     "meanSpeed": 0.0, "lapses": 0, "personalLapses": 0, "falseStarts": 0,
-    "falseStartPct": 0.0, "slope": 0.0,
-    "vsBaselineSd": 0.0, "score": 0, "band": "green|yellow|red|baseline"
+    "falseStartPct": 0.0, "slopeMsPerMin": 0.0,
+    "band": "ok | watch | act | baseline | invalid",
+    "vsBaselineSd": 0.0, "excessLapses": 0, "baselineSource": "own | sample | null"
   },
-  "recovery": {
-    "type": "breath | countermeasure | none",
-    "durationSec": 0, "adherencePct": 0,
-    "hrvSource": "replay_mmash | none | simulated"
-  },
-  "recommendation": "string",
+  "recovery": { "type": "countermeasure | none" },
+  "recommendation": "the card's primary action",
+  "cmoFlagged": false,
   "escalated": false,
   "complete": true
 }
 ```
 
-**Escalation rules (starting point):**
-- 2 red results within 24 h, **or** red right before a critical task → flag to the crew medical officer and mark for flight surgeon review in the next downlink.
+**Escalation rules:**
+- Any **Act** → crew medical officer flagged (`cmoFlagged`).
+- 2 Acts within 24 h, **or** Act right before a critical task → also marked for flight surgeon review in the next downlink (`escalated`). In the demo this is a logged flag only; no real messages.
 - The app should say that ground replies may be delayed, from seconds near the Moon to as much as about 20 min each way at Mars, so local advice must stand on its own.
 
 ### 4.7 Gamification (rewards that don't backfire)
@@ -201,7 +205,7 @@ The wording of countermeasures should be reviewed against NASA HRP fatigue and s
 
 The challenge suggests gamification, but rewarding a **high score** can push a tired astronaut to "power through" and hide impairment. So:
 - **Reward completion and honesty**, not performance. Streaks come from completing scheduled checks and recovery sessions.
-- **Personal records** are shown only for green-band sessions, and only for consistency (for example, fewest lapses), never as the main goal.
+- **Personal records** are shown only for OK sessions, and only for consistency (for example, fewest lapses), never as the main goal.
 - **Breathing badges** come from minutes of practice and sync %, not HRV values.
 - **Optional crew-level goals** ("crew completed 90% of checks this week") with **no** individual leaderboard of alertness scores.
 
@@ -220,22 +224,18 @@ The challenge suggests gamification, but rewarding a **high score** can push a t
 
 ## 5. Hackathon scope
 
-**MVP (must have):**
-- Manual start, plus a demo trigger driven by **replayed real HRV and sleep data from MMASH** (PhysioNet), labeled as "recorded data, not live". Simple simulated values are the fallback
-- Check-in → Signal Lock → branch → Orbit Breath or countermeasure card → summary
-- Baseline logic (with a "demo baseline" preset so judges see bands right away)
-- Session record saved locally in the schema above
+**MVP (built):**
+- Prompt → sleepiness → test → result + countermeasure card
+- Own-baseline scoring, sample demo baseline, escalation flags
+- Session record handed to the app (the app stores it)
 
 **Stretch:**
+- Orbit Breath, offered from the countermeasure card
 - Systems Check (go/no-go) as a second assessment
-- Trend chart of score, lapses, and HRV over days, inside the main app
 
 ## 6. Open questions for the team
-1. **HRV source:** NASA OSDR (the challenge data source) has **no human HRV or sleep data**. **Proposed:** replay real heartbeat and sleep data from the PhysioNet **MMASH** dataset (22 people, 24 h, beat-to-beat RR + sleep + mood/stress) as recorded sensor data. **Decided: no live wearable hookup** (data is only pulled). Gaps and license terms are in RESEARCH.md.
-2. **Thresholds:** keep the starting rules above or change them? Who signs off?
-3. **Crew medical officer / flight surgeon flagging:** in the demo, real notification or just a logged flag?
-4. **Design hand-off:** once the design is finalized, the pacer, signal, band colors, icons, and summary layout get styled. No styling until then.
-5. **Name:** keep the working titles ("Recalibrate", "Signal Lock", "Orbit Breath") or rename to match the app's branding?
+1. **Thresholds:** the bands are starting points. Tune after a few real sessions on the demo tablet.
+2. **Crew medical officer / flight surgeon flagging:** a logged flag only in the demo (no real messages).
 
 ## 7. Background references
 - NASA Human Research Program: *5 Hazards of Human Spaceflight* and *Risks of Human Spaceflight* (linked on the challenge Resources tab)
@@ -245,3 +245,36 @@ The challenge suggests gamification, but rewarding a **high score** can push a t
 - Karolinska Sleepiness Scale (1–9) for the self-report check-in
 - Dev et al. (2024), *Frontiers in Physiology*: NASA Cognition battery in 25 ISS astronauts; source of the 1.5 SD cutoff, the pre-flight PVT reference, and in-flight sleep hours
 - NASA OSDR studies OSD-939 (rat PVT after proton radiation), OSD-618 and OSD-479 (combined space stressors → cognitive deficits), OSD-1018 (isolation + radiation → motor learning). See RESEARCH.md for what each contains and how to use it
+
+## 8. Build and integration
+**Where:** `minigame/` is a small Vite + React + TypeScript project (the roadmap stack). **The drop-in module is `minigame/src/signal-lock/`**. The rest (`DevHarness.tsx`, `main.tsx`, `styles/base.css`) is a dev page that stands in for the app.
+
+**Run it:**
+```bash
+cd minigame
+npm install
+npm run dev      # dev page at http://localhost:5173 (also reachable from a tablet on the same Wi-Fi)
+npm test         # scoring rules
+```
+
+**Put it in the app (roadmap items 7–8):**
+1. Copy `minigame/src/signal-lock/` to `src/features/signal-lock/`. It needs `react`, `lucide-react` and `tokens.css` loaded globally, nothing else.
+2. Route `/check/signal-lock` renders `<SignalLockFlow …/>`:
+   ```tsx
+   <SignalLockFlow
+     trigger="low_hrv"                       // from the status engine
+     triggerCause="HRV 22% below your baseline (sleep window)"
+     recentSleepiness={checkIn.sleepiness}    // { value, loggedAt } or null
+     sleepHoursLastNight={sleep.hours}
+     baseline={computeBaseline(sessions)}     // or SAMPLE_BASELINE in demo mode
+     history={sessions}
+     onComplete={(record) => saveSession(record)}
+     onExit={() => navigate("/")}
+     onSnooze={(min) => snoozePrompt(min)}
+     onRecheck={(min) => scheduleRecheck(min)}
+   />
+   ```
+3. Home's **Alertness** row: `toIndicatorStatus(last.pvt.band)` for the chip, `causeLine(last, [])` for the text.
+4. `StatusChip` and the buttons inside the module are stand-ins. Swap them for the app's components when those exist (same tokens, same look).
+
+**Design-doc differences to know about:** design doc 06 S6 shows "Speed 1.2 SD slower than NASA ISS pre-flight reference". The built version says "**than your baseline**" (own-baseline decision). The NASA reference appears in Details as the source of the SD. The separate Instructions screen (S5) is folded into the prompt and the "Tap anywhere to begin" screen, which saves a tap.
