@@ -1,60 +1,59 @@
-# 03 — Design Vision: "Orbital Health — Soft Cosmic Glass"
+# 03 — Design Vision: "Instrument panel + printed lab report"
 
-*"Orbital Health" is the working name of the design direction, not the product.*
+## 1. Direction in one sentence
 
-## One-sentence direction
+Pulsaris looks like a **precise flight instrument printed onto a clean medical lab report**:
+- warm paper, ink-navy type, monospaced numbers;
+- hairline rules and one cobalt accent;
+- calm, exact and fast to read.
 
-**A premium, light, calm health app made for the space age.** Frosted glass cards float over a pale, softly lit "cosmic dawn" background. One translucent human figure anchors the screen, and every number is precise, sourced and easy to read.
+It is space-aware through its content and precision, not through decoration.
 
-## Personality
+## 2. Why this direction
 
-| We are | We are not |
+- **Speed for crew:** high contrast and clear structure make status readable in under 5 seconds (mentors M1, M4).
+- **Trust:** it borrows the visual language of documents people already trust with numbers, like lab reports and instrument readouts.
+- **Distinctive:** it is the opposite of the averaged AI look (doc 02 §B).
+- **Uniform:** a small set of tokens means every teammate's screen comes out looking the same.
+
+## 3. Principles (mandatory)
+
+1. **One status, one action, up front.** Everything else is one tap deeper.
+2. **Numbers are the hero.** They use IBM Plex Mono, always carry their unit, and always show time and source.
+3. **Every pixel justifies crew time.** If it doesn't help answer "Am I OK? What do I do?", it goes.
+4. **Trust is visible.** Recorded, sample and NASA-reference data are labeled where they appear.
+5. **Restraint is the style.**
+   - One accent.
+   - Solid surfaces.
+   - Glass in exactly two places: the status header and the toolbar.
+
+## 4. Anti-slop rules (apply to code and generated images)
+
+| Never | Instead |
 |---|---|
-| Scientific, precise, sourced | A sci-fi cockpit |
-| Calm, reassuring, non-judgmental | Alarmist, gamer-neon |
-| Premium consumer polish (Oura, Apple Health level) | A generic admin dashboard |
-| Space-aware: orbital curves, mission context, astronaut figure | Black screens, starfields, glowing borders |
-| Honest about uncertainty and simulated data | A device that "diagnoses" |
+| Purple, indigo or blue gradients; color orbs; glow; neon; bokeh | Flat warm paper `--color-bg` |
+| Glass on every card | Glass only on the status header and the toolbar |
+| Drop shadows on cards | A 1px hairline border |
+| Icons inside colored rounded squares | Inline 1.5px outline icons beside the text |
+| Inter or Roboto everywhere | IBM Plex Sans (text) + IBM Plex Mono (numbers) |
+| Identical cards in a uniform grid | Varied card sizes, sized by how important their content is |
+| Centered, symmetric layouts | Left-aligned, on a 12-column tablet grid |
+| Glowing 3D anatomy hero | A small fine-line technical drawing (doc 08) |
+| Tidy fake data (equal bars, sine waves) | Real or realistic irregular values (MMASH, Dev 2024) |
+| Adjectives in prompts ("premium", "sleek", "Dribbble") | Concrete specs: tokens, exact text, real numbers |
+| Decorative wave sparklines | Real 7-day data or nothing |
+| Emoji or mascots | Words |
 
-## Five design principles (mandatory)
+## 5. Tone of voice
 
-1. **The body is the interface.** Home starts from the body figure. Tapping a region leads to that system's indicators. This answers challenge suggestion S2, so it is not decoration.
-2. **Every number earns its place.** We show only indicators the challenge names, ones HRP links to a hazard, or ones NASA data supports. There is no filler.
-3. **Glance, then focus, then explore.** Status is readable in 2 seconds. Detail is one tap away. History is one more tap.
-4. **Trust is visible.** Every value has a unit, a timestamp and a source. Simulated data is always labeled. Status always uses an icon plus a word, never color alone.
-5. **Glass carries content, not effects.** Frost exists to create depth and calm. Readability beats translucency every time.
+- **Plain and specific:** "HRV 22% below your baseline." Not "Your recovery could be better."
+- **Action first:** "Nap 20–30 min if your schedule allows."
+- **Never diagnose:** "may be worth a check", "flagged for your crew medical officer".
+- **Cite briefly:** a short source tag such as `NASA HRP` or `Dev 2024`.
 
-## Visual ingredients
+## 6. What success looks like
 
-| Ingredient | Use | Never |
-|---|---|---|
-| **Cosmic-dawn background:** a pale pearl base with 3 large blurred color orbs (sky, lavender, peach) and 1–2 hairline orbital ellipses | Behind every screen. The orbs make the glass visibly frosted. | Stars, nebula photos, dark gradients |
-| **Frosted glass cards** | All content containers | Text directly on the background without a surface (except the hero numbers beside the body) |
-| **Translucent human figure** (adult, flight suit with no insignia, organ systems faintly visible) | Home hero, Body sheet | Faces with identifiable features, NASA logos, flags, patches |
-| **System tints:** each body system has one pastel tint used on its cards | Card backgrounds and region highlights | Data encoding; tints never mean status |
-| **Navy ink and one interactive blue** | Text and interactive elements | Colored body text |
-| **Orbital motif:** thin ellipses and arcs (gauges, background lines, loading spinner) | Sparingly, max 1 decorative ellipse per screen | Rotating planets or decorative animation loops |
-
-## Tone of voice
-
-- **Second person, calm, specific:** "Your resting heart rate is 9 bpm above your baseline for 3 days."
-- **Action first:** "Log a blood pressure reading," not "BP data required."
-- **Never diagnose:**
-  - Write "may be worth a check," "consider," "talk to your flight surgeon."
-  - Never write "you have…"
-- **Cite:** short "Why this matters in space" lines that end with a source tag such as `NASA HRP`.
-- **Label simulated data plainly:** "Simulated demo data."
-
-## Mood references
-
-- The team screenshot (primary; see doc 02 Part A).
-- Oura (calm, baselines).
-- Apple Health (structure, charts).
-- Gentler Streak (friendly guidance, target corridor).
-- NASA Eyes (labels anchored to a 3D object; a time scrubber).
-
-## What success looks like
-
-- A judge watching a 30-second demo can say what the app does, see real NASA crew data, and remember the body figure.
-- A crew member can answer three questions in under 10 seconds: Am I OK today? What changed? What should I do?
-- Any teammate or AI coding agent can build a new card using only docs 04 and 07, and it looks native.
+- An astronaut opens the app and knows their status and next action in **5 s**.
+- The daily check-in takes **≤60 s**.
+- A judge sees real NASA-derived scoring in a 30-second demo.
+- Any teammate builds a screen from docs 04, 06 and 07, and it matches the rest.

@@ -1,95 +1,56 @@
 # 10 — Implementation Roadmap
 
-**Deadline:** submission closes **Sun Nov 15, 2026, 11:59 p.m.** in our Local Event's time zone. That leaves about 1.5 days. The plan is challenge-first.
+**Deadline:** Sun Nov 15, 2026, 11:59 p.m. local time. Scope = SCOPE.md "In scope". Done = SCOPE.md "What done looks like".
 
-## 1. Technology decision
-
-The repo was empty when we started (README + `assets/icon.svg`), so there is no prior decision to preserve.
+## 1. Stack
 
 | Choice | Decision | Why |
 |---|---|---|
-| Framework | **React + TypeScript + Vite** (current stable releases; pin at scaffold) | The team and our AI tools know it best. It deploys as a static site for free. It has the component model that doc 07 needs. |
-| Styling | **CSS Modules + `tokens.css`** (CSS custom properties) | One token source. Glass needs real CSS (`backdrop-filter`). **No Tailwind**, to avoid a second, competing token system. |
-| Charts | **Recharts** (`type="monotone"` = monotoneX), wrapped in our own chart components | Fast to build. Our wrappers enforce doc 08. Screens never import Recharts directly. |
-| Icons | **lucide-react** | Matches the reference's outline icons |
-| Routing | **react-router** | The routes in doc 05 §5 |
-| State | React context + `localStorage` (or `idb-keyval`) | Local-first, no backend |
-| NASA data | Build-time script `scripts/fetch-osdr.mjs`, which writes `public/data/osdr/{cbc,cmp}.json` | Offline-capable, fast, avoids CORS and API outages during judging |
-| Hosting | GitHub Pages or Netlify | A public link with no login (rule E8) |
-| 3D (P2 only) | `<model-viewer>` or `@react-three/fiber`, lazy-loaded | Never in the critical path |
+| App | React + TypeScript + Vite | Known by the team and our AI tools. Static deploy. |
+| Styling | CSS Modules + `tokens.css` | One token source. **No Tailwind.** |
+| Charts | Recharts (`type="monotone"`) wrapped in `TrendChart` | Fast. The wrapper enforces doc 08. |
+| Icons | lucide-react | Outline set |
+| Fonts | IBM Plex Sans + IBM Plex Mono (Google Fonts) | Doc 04 §C |
+| Data | Build script `scripts/prepare-mmash.mjs` → `public/data/mmash/*.json` (RR→RMSSD windows, sleep TST) | Offline, fast, no runtime API |
+| State | React context + localStorage | Local-first |
+| Host | GitHub Pages or Netlify | Public link, no login (E8) |
 
-## 2. Priorities
+## 2. Build order (MVP)
 
-Complexity: S = under 2 h · M = 2–5 h · L = more than 5 h.
+S = under 2 h · M = 2–5 h.
 
-### P0 — Challenge-essential (must ship)
-
-| # | Item | Complexity | Depends on | Covers |
-|---|---|---|---|---|
-| P0-1 | Scaffold: Vite + TS + router + `tokens.css` + fonts + `AppShell` + `CosmicBackground` + `BottomNav` | S | — | Foundation |
-| P0-2 | Data contract (`Reading`, `IndicatorStatus`) + local storage + seed of **simulated** demo data (14 days, labeled) | S | P0-1 | R3, trust |
-| P0-3 | Content files: `indicators.json` (units, intervals, cited ranges), `systems.json` (function, HRP hazard/risk text + URLs, countermeasures), `rules.json` | M | Research (U1) | R2, S8, E3 |
-| P0-4 | Status engine `evaluate.ts` (doc 09 §4) with `reasons[]` | M | P0-2, P0-3 | R1, R4, S7 |
-| P0-5 | Core components: GlassCard, StatusChip, ProvenanceBadge, Button, SegmentedControl, MetricRow, Sheet | M | P0-1 | All screens |
-| P0-6 | **Today** screen: HeroStage + figure (still image) + 6 SVG hotspots + SideStats + SystemCards | M | P0-4, P0-5, figure asset | R1, S2, S7 |
-| P0-7 | **Check-in sheet** (all 6 indicators + exercise, validation, how-to-measure) | M | P0-5 | R3, R5, S8 |
-| P0-8 | **Metric detail** with TimeSeriesChart (baseline + reference bands, gaps, tooltip, summary) | L | P0-4, P0-5 | R7, S6, R2 |
-| P0-9 | **Crew Science**: OSDR fetch script + CrewTrajectoryChart + caveats + sources | M | P0-1 | **E2, E4** |
-| P0-10 | System sheet (function, why in space, what to do, cited) | S | P0-3, P0-5 | S2, R2 |
-| P0-11 | Disclaimer, About, AI-use statement, `REFERENCES.md`, AI watermark badge on generated art | S | — | E5, E6, E9 |
-| P0-12 | Deploy + public link + **≤30 s demo video** or ≤7 slides | M | Everything above | E8, Presentation |
-
-### P1 — Core experience and visual quality
-
-| # | Item | Complexity | Depends on |
+| # | Item | Size | Depends on |
 |---|---|---|---|
-| P1-1 | Trends list with sparklines + range control | M | P0-8 |
-| P1-2 | Insights tab: ranked insights, insight detail, streak card (gamification S5) | M | P0-4 |
-| P1-3 | RangeBarChart (BP), LollipopChart (sleep), MoodStrip | M | P0-8 |
-| P1-4 | Profile: mission phase + environment, units, export/clear, demo toggle | S | P0-2 |
-| P1-5 | Onboarding (3 cards + "Explore with demo data") | S | P0-2 |
-| P1-6 | Figure upgrade to 2.5D layers + parallax + region zoom | M | Layered asset |
-| P1-7 | Desktop layouts (rail, master–detail, side panel) | M | P0 screens |
-| P1-8 | Accessibility pass (doc 09 §7 checklist) + table views | M | P0 screens |
+| 1 | Scaffold, tokens, fonts, Toolbar, Card, Button, StatusChip | S | — |
+| 2 | Data contract (doc 05 §5) + MMASH prep script (RMSSD per SCOPE/RESEARCH processing notes) + sample BP/sugar/temp | M | 1 |
+| 3 | Status engine: SCOPE/MINIGAME rules → `IndicatorStatus` with cause + rule | M | 2 |
+| 4 | **Home** (S1) incl. top-issue selection | M | 3 |
+| 5 | Daily check-in sheet (S2) | S | 1 |
+| 6 | Indicator detail + TrendChart (S3) | M | 3 |
+| 7 | **Signal Lock flow** (S5) + PVT metrics + baseline (NASA preset) | M | 1 |
+| 8 | Result + CountermeasureCard (S6) + escalation flag | S | 7 |
+| 9 | Entry sheets: BP+sugar, Temperature (S4) | S | 1 |
+| 10 | Settings & About: credits (MMASH ODbL, Dev 2024, HRP), disclaimer, AI-use statement, demo controls | S | — |
+| 11 | Secondary BodyFigure (SVG) | S | 4 |
+| 12 | Deploy + demo video (≤30 s) | M | All above |
 
-### P2 — Premium enhancements
+**Stretch** (after done): Orbit Breath, offered from the countermeasure card.
 
-| # | Item | Complexity |
-|---|---|---|
-| P2-1 | Interactive 3D figure (TRELLIS.2 GLB) behind a toggle | L |
-| P2-2 | Cognitive check mini-game (reaction time), triggered by a sleep "watch" | M |
-| P2-3 | Radiation environment layer (DONKI space weather, CSA radiation context) | M |
-| P2-4 | Mission-day scrubber replaying body status (NASA Eyes pattern) | M |
-| P2-5 | Status modes (EVA day, Illness, Rest) adjusting expectations | M |
-| P2-6 | Dark mode with separately validated tokens | M |
-| P2-7 | "Share with flight surgeon" summary export (PDF/JSON) | S |
+**Team split:**
+- **Lead dev:** 2, 3, 4.
+- **Frontend:** 1, 5, 6, 9.
+- **Minigame owner (Aileen):** 7, 8.
+- **Content:** cited ranges U1–U3, card wording, 10.
+- **Design/demo:** 11, 12, mockups.
 
-## 3. Suggested team split (P0)
+## 3. Demo path (30 s, matches SCOPE "done")
 
-| Person | Owns |
+| Time | Shows |
 |---|---|
-| Lead dev | P0-1, P0-2, P0-4, then P0-8 |
-| Frontend dev | P0-5, P0-6, P0-7, P0-10 |
-| Data dev | P0-9 (OSDR script + chart), then P1-3 |
-| Research / content (the research-journal author is a good fit) | P0-3 content and cited ranges, P0-11 references, U1/U5 verification |
-| Design / demo | Figure asset (doc 08 §B2), P0-12 demo, slides |
+| 0–4 s | Home: **Watch**, "HRV 22% below your baseline", one action. Recorded MMASH label visible. |
+| 4–9 s | Daily check-in done in 3 taps |
+| 9–22 s | Start the alertness check, a few taps, cut to the result: Watch + countermeasure card. "Scored against the NASA ISS pre-flight reference." |
+| 22–27 s | Tap HRV, see the 7-day trend with the baseline band |
+| 27–30 s | Closing line on crew time: about 1 min a day |
 
-**Merge order to avoid blocking:** P0-1 and the data contract (doc 05 §6) first. Then all P0 items run in parallel against the contract.
-
-## 4. Demo path (30 seconds, designed now)
-
-1. **0–3 s:** Today. The figure shows a "watch" glow on the head. The voice-over gives the team name and the challenge.
-2. **3–10 s:** Tap the head to open the System sheet: "Sleep below your baseline", with "Why it matters in space · NASA HRP".
-3. **10–17 s:** Metric detail. Scrub the chart: baseline band, a raw point, and the Simulated badge visible.
-4. **17–25 s:** Crew Science. Four real Inspiration4 crew lines from NASA OSDR, before and after flight.
-5. **25–30 s:** Log a reading in the Check-in sheet; the status updates. Closing line about long missions and Earth analogs.
-
-English subtitles. The Simulated badge stays visible throughout. The AI-generated badge is visible on the figure.
-
-## 5. Definition of done (per screen)
-
-- [ ] Uses only components from doc 07 and tokens from doc 04.
-- [ ] All states from its blueprint (doc 06) are implemented.
-- [ ] Passes the doc 09 §7 checklist items that apply to it.
-- [ ] Every value shows unit, timestamp and provenance.
-- [ ] A screenshot is attached to the PR and reviewed by one teammate.
+English subtitles. AI-illustration and data labels visible.
