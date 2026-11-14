@@ -37,7 +37,7 @@ Research done 2026-11-14. **(read)** means we opened the page. **(snippet)** mea
 
 ## C. Lessons from mockup v1 (the Orion glass concept)
 
-`mockups/v1-today-and-bp-detail.jpg` was rendered from our first prompt. It had nearly every tell:
+Our first ChatGPT mockup (v1, not kept in the repo) had nearly every tell:
 - A lavender and blue gradient wash.
 - Glass on every card.
 - A glowing anatomy figure.
