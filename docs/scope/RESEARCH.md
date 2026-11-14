@@ -48,13 +48,44 @@ Searched 2026-11-14 for: sleep, HRV / heart rate variability, ECG, heart rate, c
 | **OSD-618** (ALSDA): combined stressors | Mice given simulated cosmic radiation (GCRsim) **plus** social isolation or hindlimb unloading | Transformed CSVs + data dictionaries: novel object recognition, radial arm water maze, open field, elevated plus maze, social approach, balance beam | Radiation + confinement + altered gravity **together** produce behavioral and cognitive deficits. Males were hit harder, and **early blood markers predicted later deficits**. Supports routine trend tracking and per-person baselines |
 | **OSD-479** (GeneLab): Krukowski et al. 2021 | Mice after GCRsim; spatial learning, memory, anxiety, social tests | Same assay types as OSD-618 (transformed CSVs + dictionaries) | **Spatial learning / memory** loss after cosmic radiation (males). Supports **Star Sequence** (memory) as a later game |
 | **OSD-1018** (ALSDA): Adkins et al. 2023, *Life*, doi:10.3390/life13030826 | Rats: social isolation + space radiation, **sleep-linked "resilient vs. vulnerable" stress types**, balance beam motor learning | `LSDS-185_Balance_Beam_..._TRANSFORMED.csv` + dictionary | Isolation and radiation affect **motor learning** differently, and results differ by stress resilience tied to sleep. Supports **Docking Drift** (sensorimotor) and **personal baselines over population norms** |
-| **OSD-569 / 570 / 571 / 575 / 656** (Inspiration4) | The only **human crew** data here: blood, plasma, urine, cytokines (incl. a cardiovascular panel), metabolic panel, pre- and post-flight | Transformed CSVs per panel | Not useful for the minigame (no HRV or cognition). **Useful for the main app** (e.g., glucose from the metabolic panel, cardiac/inflammation markers) |
+| **OSD-569 / 570 / 571 / 575 / 656** (Inspiration4) | The only **human crew** data here: blood, plasma, urine, cytokines (incl. a cardiovascular panel), metabolic panel, pre- and post-flight | Transformed CSVs per panel | Not useful for the minigame (no HRV or cognition). **Main app: glucose from OSD-575 is now used**; see "Human (*Homo sapiens*) studies" below |
 | **OSD-195, 198, 51, 370, 942** | Human **bed-rest** studies (a spaceflight analog), muscle gene expression | Omics only | Not useful for the minigame |
 
 ### Cautions on using the data
 - **Don't feed rat reaction times into human scoring.** Rat nose-poke times (~500 ms medians) aren't comparable to human taps. Use these studies as **evidence and metric definitions**, not as norms.
 - Good uses for the pitch and in-app explanations: "NASA-funded research found that space radiation reduced sustained attention in rats and increased impulsive responding (OSD-939). That's why the app checks attention after radiation events."
 - In OSD-939, the radiation dose for each sample is in the ISA metadata zip, not the JSON API. Download `OSD-939_metadata_OSD-939-ISA.zip` if we want dose-group charts.
+
+### Human (*Homo sapiens*) studies: full sweep
+Checked 2026-11-14: **all 121 OSDR studies tagged *Homo sapiens*** across GeneLab, ALSDA and ESA, plus every file category in the studies that involve real people.
+
+| Group | Count | Examples | Useful to our app? |
+|---|---|---|---|
+| Human **cells, organoids or tissue** grown in a lab (on the ISS or under simulated conditions) | ~90 | T cells, stem cells, brain organoids, skin models | **No.** These aren't people |
+| **Astronaut** samples (ISS, Inspiration4, Axiom-1, JAXA) | ~20 | OSD-53, 174, 316, 353, 359, 481, 483, 530, 569–575, 656, 687, 903, 943 | Almost all are **gene, protein or microbiome data** (RNA-seq, proteomics, epigenetics). **Only OSD-575 (metabolic panel) and OSD-569 (blood count) hold clinical values** |
+| **Earth analogs** (bed rest, limb suspension, 14-day confinement, Mars-520) | ~12 | OSD-195, 198, 51, 354, 370, 540, 542, 140, 783, 784, 942, 946 | **No.** Muscle and blood gene expression only |
+
+**None of the 121 has heart rate, HRV, blood pressure, temperature, sleep, mood or cognitive-test data.** This confirms MMASH is still needed for HRV and sleep.
+
+### What we pull: Inspiration4 blood glucose (OSD-575)
+**Source:** OSD-575, file `LSDS-8_Comprehensive_Metabolic_Panel_CMP_TRANSFORMED.csv`. Four civilian crew (C001–C004), 3-day orbital mission, September 2021. Serum tested by Quest Diagnostics, a clinical lab. Published as part of SOMA (Overbey et al. 2024, *Nature*, doi:10.1038/s41586-024-07639-y).
+
+| Crew | 92 d before | 44 d before | 3 d before | 1 d after | 45 d after | 82 d after | 194 d after |
+|---|---|---|---|---|---|---|---|
+| C001 | 83 | 80 | 69 | 90 | 84 | 91 | 87 |
+| C002 | 69 | 72 | 78 | 83 | 44 ⚠ | 77 | 84 |
+| C003 | 77 | 62 | 75 | 103 | 36 ⚠ | 80 | 73 |
+| C004 | 100 | 83 | 56 | 97 | 43 ⚠ | 80 | 84 |
+
+Glucose in mg/dL. **Lab reference range: 65–99 mg/dL** (included in the file).
+
+**Why this helps the app:**
+1. **Real crew numbers for the blood-sugar row.** The challenge names blood sugar as an indicator, but no in-flight glucose data exists in OSDR. Pre-flight values from real crew (56–100 mg/dL) replace invented sample numbers in the demo, labeled "Inspiration4 crew, OSD-575."
+2. **A credible safe range.** Blood sugar is typed in only when prompted, so it has no personal baseline. The lab's own 65–99 mg/dL range is the starting "OK" band. Outside it means "Watch."
+3. **Re-check before alarming.** One crew member's three pre-flight values ran from 56 to 100. Three crew members read 36–44 mg/dL at 45 days after landing, which the dataset doesn't explain (possibly sample handling, but that's unconfirmed; **don't present it as real low blood sugar**). Single readings swing, so a single out-of-range typed value prompts a **15-second re-check** before any alert. That costs less crew time than a false alarm.
+4. **Personal variation again.** Each crew member has their own normal level, which supports trends over one-off readings.
+
+**Not used:** the day-after-landing values were higher than pre-flight for all four (83–103), but that's post-flight (out of scope) and only 4 people. Skip OSD-569 (blood counts for anemia) too, since anemia needs lab testing, which is out of scope.
 
 ### How to query OSDR (for the team)
 - Search NASA sources: `https://osdr.nasa.gov/osdr/data/search?term=<term>&type=cgene` (or `type=alsda`)

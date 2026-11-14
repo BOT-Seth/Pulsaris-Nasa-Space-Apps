@@ -42,7 +42,7 @@ Collect passively wherever possible. Only ask the astronaut for what a sensor ca
 | Sleepiness | Self-report | **1 tap** (1–9 slider) |
 | Blood pressure | Cuff reading, typed in | About 15 s, **only when prompted** (e.g., weekly or if HR is abnormal) |
 | Body temperature | Typed in | About 10 s, **only when prompted** (e.g., feeling unwell) |
-| Blood sugar | Typed in | About 15 s, **only when prompted** |
+| Blood sugar | Typed in. OK band = lab range **65–99 mg/dL**; demo values = real Inspiration4 crew (OSD-575) | About 15 s, **only when prompted**. An out-of-range value asks for **one re-check** before alerting |
 
 **Daily manual input = 2 taps** (mood + sleepiness) plus a sleep confirmation. Everything else is passive or on request.
 
@@ -58,7 +58,7 @@ Collect passively wherever possible. Only ask the astronaut for what a sensor ca
 6. **Triggered alertness check:** Signal Lock (3-min reaction test), run **only** when HRV/sleep/sleepiness is flagged or before a critical task. One result + one action. See MINIGAME.md
 7. **Optional 2-min breathing** (Orbit Breath) offered after a low-HRV flag
 8. **One trend view:** 7-day line per indicator, tapped open from its row. Not on the home screen
-9. **Demo data:** MMASH replay for HRV/sleep, simple labeled sample values for the rest
+9. **Demo data:** MMASH replay for HRV/sleep; **real Inspiration4 crew glucose** (OSD-575) for blood sugar; simple labeled sample values for BP and temperature (no open crew data exists for those)
 
 ## Out of scope: Parking lot (only after the MVP is demoable)
 | Idea | Why parked |
@@ -115,6 +115,7 @@ Full detail, plus sources we reviewed but **don't** use in the MVP, is in [RESEA
 | Source | Credibility | What we use it for | Limits |
 |---|---|---|---|
 | **MMASH** on PhysioNet (Rossi A, et al. 2020, *Data* 5(4):91, doi:10.3390/data5040091; dataset doi:10.13026/cerq-fc86) | Published, peer-reviewed data paper; hosted on **PhysioNet** (MIT / NIH-funded repository) | **Real beat-to-beat heart data (for HRV) and sleep data** replayed in the demo. License ODbL v1.0: must credit it | 22 young men, 24 h each, on Earth |
+| **NASA OSDR** OSD-575: Inspiration4 metabolic panel (part of SOMA, Overbey et al. 2024, *Nature*) | NASA's official repository; clinical lab (Quest Diagnostics) results from real crew | **Real crew blood glucose** for the demo's blood-sugar row, and the lab's **65–99 mg/dL** range as the OK band. The only human clinical value in OSDR that matches a challenge indicator | 4 crew, 3-day flight, pre/post-flight only; unexplained low readings at 45 days after landing are excluded |
 | **NASA OSDR** OSD-939 (Davis CM, et al. 2015, *PLOS ONE*, doi:10.1371/journal.pone.0144556) | NASA's official repository + peer-reviewed paper | **Supporting evidence only:** space-type radiation impaired a rat version of the PVT. No rat numbers are used in scoring | Rats, not humans |
 | **NASA Life Sciences Portal (NLSP)**: human cardiovascular experiments, ISS + Shuttle | NASA's official archive of crew experiments | **Evidence only.** Points us to the peer-reviewed results above (DSO 602/463). The in-flight heart and BP numbers themselves are **restricted** (formal data request), so they're not demo data | Of 106 experiments, 7 are fully public and 16 partly; 37 international ones never archived data |
 | **NASA Human Research Program** (5 Hazards; Risks of Human Spaceflight) | Official NASA, linked by the challenge | Framing: which hazards the app addresses | Overview pages, not data |

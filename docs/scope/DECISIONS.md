@@ -4,6 +4,7 @@ Newest at the top. Record what was decided, why, and by whom. Open questions liv
 
 | Date | Decision | Why | Status |
 |---|---|---|---|
+| 2026-11-14 | Blood sugar: demo values = **real Inspiration4 crew glucose** (OSD-575); OK band = lab range **65–99 mg/dL**; an out-of-range typed value prompts **one re-check** before alerting | The only open human clinical data in OSDR matching a challenge indicator. Single readings swing widely (56–100 in one person pre-flight), so a re-check is cheaper than a false alarm | Proposed, needs team OK |
 | 2026-11-14 | HR, HRV and BP rules compare with an **in-flight rolling baseline**, never pre-flight. The low-HRV trigger is off for the first 7 days of flight while that baseline builds | HR, diastolic BP and HRV all normally drop in microgravity (Fritsch-Yelle et al. 1996; NASA DSO 602/463), so pre-flight comparisons would flag everyone daily | Proposed, needs team OK |
 | 2026-11-14 | NLSP is used as **evidence, not demo data** | In-flight cardiovascular recordings there are restricted or were never archived | Decided (no data available) |
 | 2026-11-14 | **No live wearable hookup.** Data is only pulled from published datasets. Moved from "parked" to "not doing" | Team decision (Aileen) | **Decided** |
