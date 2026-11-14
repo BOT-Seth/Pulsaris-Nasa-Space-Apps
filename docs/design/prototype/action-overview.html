@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulsaris · Action overview prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!--
+  Pulsaris: Action overview design prototype (single file, no build step).
+
+  What this is: a clickable design prototype of one workflow:
+    collect -> summarize -> inspect evidence -> sourced next step -> record action -> follow up.
+  What this is not: a working health app. No measurement is taken. The 3-minute
+  alertness test is NOT implemented here; its result is a labeled sample session.
+  Every number is a sample placeholder until the MMASH replay script exists.
+
+  Rules and thresholds come from docs/scope (branch aileen-workspace):
+    SCOPE.md, MINIGAME.md sections 2, 4.1, 4.3, 4.5, 4.9, RESEARCH.md.
+  Token names follow docs/design/tokens.css. Surface, ink, accent and radius values
+  differ on purpose (flight-tablet direction). Status colors are unchanged.
+-->
+<style>
+/*
+  Flight-tablet surface: one matte paper tone, full-bleed 1px hairline grid,
+  0-2px corners, one obsidian control color. No floating cards, no shadows.
+  These values intentionally differ from docs/design/tokens.css (proposal).
+*/
+:root {
+  color-scheme: light;
+  --color-bg: #f7f7f5;
+  --color-surface: #f7f7f5;
+  --color-surface-inset: #ededea;
+  --color-hairline: #d8d8d2;
+  --color-control-border: #8a8c91;
+  --color-ink: #141517;
+  --color-ink-2: #45474d;
+  --color-ink-muted: #5e6066;
+  --color-ink-inverse: #ffffff;
+  --color-accent: #141517;
+  --color-accent-hover: #2b2d31;
+  --color-accent-pressed: #000000;
+  --color-focus-ring: #141517;
+  --status-ok: #2e7d4f;
+  --status-ok-text: #256b42;
+  --status-ok-soft: #e6efea;
+  --status-watch: #b7791f;
+  --status-watch-text: #7d5200;
+  --status-watch-soft: #f6efe4;
+  --status-act: #b42318;
+  --status-act-text: #9f1d14;
+  --status-act-soft: #f6e5e3;
+  --status-none: #8a8f9c;
+  --status-none-text: #5e6066;
+  --status-none-soft: #ededea;
+  --telemetry-rail: #cfd0cb;
+  --telemetry-fill: #6b7280;
+  --telemetry-deficit: #d97706;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --type-status: 600 30px/36px var(--font-sans);
+  --type-title: 600 22px/28px var(--font-sans);
+  --type-section: 600 17px/24px var(--font-sans);
+  --type-body: 400 17px/24px var(--font-sans);
+  --type-body-sm: 400 15px/20px var(--font-sans);
+  --type-label: 500 13px/16px var(--font-sans);
+  --type-metric: 500 30px/34px var(--font-mono);
+  --type-value: 500 22px/28px var(--font-mono);
+  --type-unit: 400 14px/18px var(--font-mono);
+  --type-caption: 400 12px/16px var(--font-mono);
+  --type-button: 600 16px/22px var(--font-sans);
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-8: 32px;
+  --radius: 2px;
+  --border-hairline: 1px solid var(--color-hairline);
+  --border-control: 1px solid var(--color-control-border);
+  --touch-min: 48px;
+  --touch-gap: 12px;
+  --dock-clearance: 56px;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+
+.app {
+  container-type: inline-size;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: var(--type-body);
+  border: var(--border-hairline);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 1240px;
+  margin: 0 auto var(--dock-clearance);
+}
+.app h1, .app h2, .app h3, .app p, .app ul, .app ol, .app dl, .app dd { margin: 0; padding: 0; }
+.app ul, .app ol { list-style: none; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--color-ink-muted); }
+.sm { font: var(--type-body-sm); }
+.cap { font: var(--type-caption); color: var(--color-ink-muted); }
+.label { font: var(--type-label); color: var(--color-ink-muted); }
+
+/* Toolbar: a strip of hairline cells. Identity, clock, data mode, link state never move. */
+.toolbar { border-bottom: var(--border-hairline); }
+.bar { display: flex; flex-wrap: wrap; align-items: stretch; }
+.brand { font: 600 17px/24px var(--font-sans); letter-spacing: 0.06em; padding: var(--space-3) var(--space-4); margin-right: auto; display: flex; align-items: center; }
+.meta { display: grid; grid-template-columns: 1fr 1fr; width: 100%; font: var(--type-caption); color: var(--color-ink-2); }
+.meta span { display: flex; flex-direction: column; justify-content: center; padding: 6px var(--space-4); border-top: var(--border-hairline); border-left: var(--border-hairline); min-width: 0; }
+.meta span:nth-child(odd) { border-left: 0; }
+.meta b { font: 500 13px/18px var(--font-mono); color: var(--color-ink); }
+.nav { display: flex; flex-wrap: wrap; border-top: var(--border-hairline); }
+.nav button {
+  flex: 1 1 auto; min-height: var(--touch-min); padding: 0 var(--space-5);
+  font: var(--type-button); color: var(--color-ink-2);
+  background: none; border: 0; border-right: var(--border-hairline); border-radius: 0; cursor: pointer;
+}
+.nav button[aria-current="page"] { color: var(--color-ink); box-shadow: inset 0 -3px 0 var(--color-ink); }
+.nav .count { font: var(--type-caption); margin-left: var(--space-1); }
+
+/* Surface: panels are regions of one sheet, divided by hairlines only */
+.main { display: grid; }
+.panel { padding: var(--space-4); border-bottom: var(--border-hairline); min-width: 0; }
+.panel:has(> details:only-child) { padding-block: var(--space-1); }
+.grid { display: grid; border-bottom: var(--border-hairline); }
+.grid > aside { display: block; }
+.grid > aside > .panel:last-child { border-bottom: 0; }
+.main > .btn-row { padding: var(--space-1) var(--space-4); border-bottom: var(--border-hairline); }
+.main > .foot { padding: var(--space-3) var(--space-4); }
+@container (min-width: 680px) {
+  .bar { flex-wrap: nowrap; }
+  .brand { padding-inline: var(--space-6); }
+  .meta { display: flex; width: auto; }
+  .meta span { border-top: 0; padding-inline: var(--space-5); }
+  .meta span:nth-child(odd) { border-left: var(--border-hairline); }
+  .nav button { flex: 0 0 auto; padding-inline: var(--space-6); }
+  .panel { padding: var(--space-5) var(--space-6); }
+  .grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .grid > .panel { border-bottom: 0; }
+  .grid > aside { border-left: var(--border-hairline); }
+  .main > .btn-row, .main > .foot { padding-inline: var(--space-6); }
+}
+
+.stack { display: grid; gap: var(--space-3); align-content: start; }
+.stack-sm { display: grid; gap: var(--space-2); align-content: start; }
+h1 { font: var(--type-status); letter-spacing: -0.01em; }
+h1:focus { outline: none; }
+h2 { font: var(--type-section); }
+h3 { font: var(--type-caption); color: var(--color-ink-muted); }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px var(--space-2); border: 1px solid currentColor; border-radius: var(--radius);
+  font: var(--type-label); white-space: nowrap;
+}
+.chip svg { width: 16px; height: 16px; flex: none; }
+.chip.ok { background: var(--status-ok-soft); color: var(--status-ok-text); }
+.chip.watch { background: var(--status-watch-soft); color: var(--status-watch-text); }
+.chip.act { background: var(--status-act-soft); color: var(--status-act-text); }
+.chip.none { background: var(--status-none-soft); color: var(--status-none-text); }
+
+/* Controls: obsidian primary key, outlined secondary, underlined quiet */
+.btn {
+  min-height: 52px; padding: var(--space-2) var(--space-5);
+  font: var(--type-button); border-radius: var(--radius); cursor: pointer;
+  border: var(--border-control); background: var(--color-surface); color: var(--color-ink);
+  text-align: center;
+}
+.btn:active { transform: translateY(1px); }
+.btn.primary {
+  background: var(--color-accent); border-color: var(--color-accent); color: var(--color-ink-inverse);
+  padding-inline: var(--space-5) var(--space-4); text-align: left; letter-spacing: 0.01em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -2px 0 var(--color-accent-pressed);
+}
+.btn.primary::after { content: "\2192"; font: 400 18px/22px var(--font-mono); margin-left: var(--space-5); opacity: 0.8; }
+.btn.primary:hover { background: var(--color-accent-hover); }
+.btn.primary:active { background: var(--color-accent-pressed); box-shadow: none; }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--color-ink); padding-inline: 0; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.btn:disabled { background: var(--color-surface-inset); border-color: var(--color-hairline); color: var(--color-ink-muted); cursor: not-allowed; box-shadow: none; transform: none; }
+.btn-row { display: flex; flex-wrap: wrap; gap: var(--touch-gap) var(--space-5); align-items: center; }
+.app :focus-visible, .dock :focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.app h1:focus-visible { outline: none; }
+.app a { color: var(--color-ink); text-underline-offset: 3px; }
+
+/* State line: interpretation state kept apart from task state and data quality */
+.app .state { border-left: 3px solid var(--color-control-border); padding-left: var(--space-3); }
+.state.watch { border-color: var(--status-watch); }
+.state.ok { border-color: var(--status-ok); }
+.app .notice { background: var(--color-surface-inset); border-radius: var(--radius); padding: var(--space-2) var(--space-3); }
+
+/* Evidence: large tabular value, micro-telemetry track, then age, comparison, quality */
+.evidence { display: grid; }
+.ev { display: grid; gap: var(--space-2) var(--space-6); padding: var(--space-3) 0; border-top: var(--border-hairline); align-items: start; }
+.ev:first-child { border-top: 0; padding-top: var(--space-1); }
+.ev:last-child { padding-bottom: var(--space-1); }
+@container (min-width: 520px) { .ev { grid-template-columns: 220px minmax(0, 1fr); } }
+.ev .val { font: var(--type-metric); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; margin-top: 2px; }
+.ev .val small { font: var(--type-unit); color: var(--color-ink-2); letter-spacing: 0; }
+
+.track { display: grid; gap: 6px; margin-top: var(--space-2); }
+.rail { position: relative; height: 4px; background: var(--telemetry-rail); }
+.rail .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--telemetry-fill); }
+.rail .gap { position: absolute; top: 0; bottom: 0; background: var(--telemetry-deficit); }
+.rail .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--color-ink); }
+.rail.off .fill { opacity: 0.35; }
+.rail.seg { background: none; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.rail.seg i { background: var(--telemetry-rail); }
+.rail.seg i.on { background: var(--telemetry-fill); }
+
+.rows > li { padding: 10px 0; border-top: var(--border-hairline); }
+.rows > li:first-child { border-top: 0; padding-top: 0; }
+.rows > li:last-child { padding-bottom: 0; }
+.rows > li:has(> details) { padding: 0; }
+
+details > summary {
+  min-height: var(--touch-min); cursor: pointer; list-style: none;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4);
+  padding: var(--space-2) 0;
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::after { content: "+"; font: var(--type-value); color: var(--color-ink-muted); margin-left: auto; }
+details[open] > summary::after { content: "\2212"; }
+details .body { padding: 0 0 var(--space-3); display: grid; gap: var(--space-2); }
+.m-name { font: var(--type-section); flex: 1 1 150px; }
+.m-val { font: var(--type-value); flex: 0 1 170px; }
+.m-val small { font: var(--type-unit); color: var(--color-ink-2); }
+.m-age { font: var(--type-caption); color: var(--color-ink-2); flex: 1 1 180px; }
+
+/* Choice groups: native radios and checkboxes inside 52px keys */
+.choices { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); border: 0; padding: 0; margin: 0; min-width: 0; }
+.choices.words { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.choices legend { font: var(--type-section); padding: 0; margin-bottom: var(--space-2); }
+.choices label {
+  min-height: 52px; display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-control); border-radius: var(--radius); background: var(--color-surface);
+  font: var(--type-button); cursor: pointer; position: relative;
+}
+.choices input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.choices label:has(input:checked) { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-ink-inverse); }
+.choices label:has(input:focus-visible) { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.ends { display: flex; justify-content: space-between; gap: var(--space-4); font: var(--type-body-sm); color: var(--color-ink-2); }
+.field { display: grid; gap: var(--space-2); max-width: 260px; }
+.field input {
+  min-height: 56px; padding: 0 var(--space-4); font: var(--type-value);
+  border: var(--border-control); border-radius: var(--radius); color: var(--color-ink); background: var(--color-surface); width: 100%;
+}
+.err { color: var(--status-act-text); font: var(--type-body-sm); }
+
+.steps { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font: var(--type-body-sm); color: var(--color-ink-muted); }
+.steps [aria-current="step"] { color: var(--color-ink); font-weight: 600; }
+
+.kv { display: grid; gap: var(--space-2) var(--space-4); }
+@container (min-width: 520px) { .kv { grid-template-columns: 200px minmax(0, 1fr); } }
+.kv dt { font: var(--type-body-sm); color: var(--color-ink-2); }
+.kv dd { font: var(--type-body); }
+.big { font: var(--type-title); }
+
+.demo { border: 1px dashed var(--color-control-border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-2); }
+.tag { font: var(--type-caption); color: var(--color-ink-2); letter-spacing: 0.08em; }
+.foot { font: var(--type-caption); color: var(--color-ink-muted); }
+.log li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-3); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Demo drawer: docked to the bottom edge of the viewport, outside the crew interface */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--color-surface-inset); border-top: 1px solid var(--color-control-border);
+  color: var(--color-ink); font: var(--type-body-sm);
+}
+.dock details { max-width: 1240px; margin: 0 auto; padding: 0 var(--space-4); }
+.dock summary { min-height: 40px; padding: 0; }
+.dock summary::after { font: var(--type-section); }
+.dock .btn-row { padding: var(--space-1) 0 var(--space-3); }
+.dock .btn { min-height: 44px; padding-block: var(--space-1); font: 600 15px/20px var(--font-sans); background: var(--color-bg); }
+.dock .btn.quiet { background: transparent; }
+
+@media (forced-colors: active) { .app, .panel, .chip, .btn, .notice, .dock { border: 1px solid CanvasText; } }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="toolbar">
+    <div class="bar">
+      <div class="brand">Pulsaris</div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <nav class="nav" id="nav" aria-label="Main"></nav>
+  </header>
+  <main class="main" id="main"></main>
+  <div class="sr" role="status" aria-live="polite" id="live"></div>
+</div>
+
+<!-- Outside .app on purpose: .app is a size container, which would trap position: fixed. -->
+<div class="dock">
+  <details id="demo" aria-label="Demo controls">
+    <summary><span class="tag">DEMO CONTROLS · NOT PART OF THE CREW INTERFACE</span></summary>
+    <div class="btn-row" id="dock-btns"></div>
+  </details>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Reference data (all sourced or labeled sample) ---------- */
+
+  // Karolinska Sleepiness Scale anchors (Akerstedt & Gillberg 1990).
+  var KSS = ['', 'Extremely alert', 'Very alert', 'Alert', 'Rather alert', 'Neither alert nor sleepy',
+    'Some signs of sleepiness', 'Sleepy, but no effort to keep awake',
+    'Sleepy, some effort to keep awake', 'Very sleepy, great effort to keep awake'];
+  var MOOD = ['', 'Very low', 'Low', 'Neutral', 'Good', 'Very good'];
+
+  // NASA ISS pre-flight PVT reference: Dev et al. 2024, Table 1 (N = 24).
+  // PVT speed = 10 - mean(1/RT in s). Lower = faster.
+  var REF = { mean: 5.25, sd: 0.24, n: 24 };
+
+  // Sample sessions. NOT produced by a test in this prototype.
+  var SAMPLE_SESSIONS = [
+    { recip: 4.46, lapses: 4, trials: 45, falseStarts: 1 },
+    { recip: 4.69, lapses: 1, trials: 46, falseStarts: 0 }
+  ];
+
+  var SLEEP = { minutes: 348, from: '23:40', to: '05:52', endedAt: 5 * 60 + 52 };
+  var SYMPTOMS = ['Headache', 'Nausea', 'Dizziness', 'Congestion', 'Pain', 'Feverish', 'Other'];
+  var REGIONS = ['Head', 'Chest', 'Abdomen', 'Arms or legs', 'Whole body'];
+  var HRP_URL = 'https://www.nasa.gov/reference/risk-from-inadequate-sleep-and-irregular-schedules/';
+
+  /* ---------- State: task, interpretation and data quality are separate fields ---------- */
+
+  var S;
+  function reset() {
+    S = {
+      view: 'overview',
+      now: 6 * 60 + 14,                 // demo clock, minutes after midnight
+      link: false,                      // ground link
+      checkin: { status: 'due', mood: null, kss: null, sleep: null, savedAt: null },
+      concern: null,                    // { cause, openedAt, state: 'open'|'resolved', session: index|null, resolvedAt }
+      defer: null,                      // { dueAt }
+      invalidAt: null,                  // last interrupted, unscored attempt
+      sessions: [],                     // scored sessions
+      action: null,                     // { at, text }
+      recheck: null,                    // { dueAt }
+      symptoms: [],                     // { at, region, list, temp }
+      symptomDraft: { region: null, list: [], temp: '' },
+      flag: null,                       // { queuedAt, deliveredAt }
+      resultIndex: 0,
+      log: []
+    };
+  }
+
+  /* ---------- Helpers ---------- */
+
+  function fmt(m) {
+    m = ((m % 1440) + 1440) % 1440;
+    var h = Math.floor(m / 60), mm = m % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+  function age(from) {
+    var d = S.now - from;
+    if (d < 1) return 'just now';
+    if (d < 60) return d + ' min ago';
+    return Math.floor(d / 60) + ' h ' + (d % 60) + ' min ago';
+  }
+  function log(text) { S.log.unshift({ t: S.now, text: text }); }
+  function say(text) { document.getElementById('live').textContent = text; }
+  function n(v) { return '<span class="num">' + v + '</span>'; }
+  function pl(count, word) { return count + ' ' + word + (count === 1 ? '' : 's'); }
+
+  var ICON = {
+    ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>',
+    watch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    act: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.2v.3"/></svg>',
+    none: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>',
+    due: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+  };
+  function chip(kind, word) {
+    var cls = kind === 'due' ? 'none' : kind;
+    return '<span class="chip ' + cls + '">' + ICON[kind] + word + '</span>';
+  }
+  function btn(action, text, variant, extra) {
+    return '<button type="button" class="btn ' + (variant || '') + '" data-action="' + action + '"' + (extra || '') + '>' + text + '</button>';
+  }
+
+  /* ---------- Rules (MINIGAME.md 4.3 bands, 2 triggers) ---------- */
+
+  function score(sample) {
+    var speed = 10 - sample.recip;
+    var z = (speed - REF.mean) / REF.sd;
+    var band = (z >= 1.5 || sample.lapses >= 6 || sample.falseStarts >= 4) ? 'act'
+      : (z >= 1 || sample.lapses >= 3) ? 'watch' : 'ok';
+    return {
+      recip: sample.recip, ms: Math.round(1000 / sample.recip), speed: speed, z: z, band: band,
+      lapses: sample.lapses, trials: sample.trials, falseStarts: sample.falseStarts
+    };
+  }
+  function sleepUsable() { return S.checkin.sleep !== 'no'; }
+  function triggerCause() {
+    var k = S.checkin.kss;
+    if (k >= 7 && sleepUsable()) return 'You rated sleepiness ' + k + ' of 9 after 5 h 48 min of sleep.';
+    if (k >= 7) return 'You rated sleepiness ' + k + ' of 9.';
+    return null;
+  }
+
+  function primaryState() {
+    var c = S.concern;
+    if (c && c.state === 'open') {
+      if (c.session === null) return 'check';
+      return S.action ? 'followup' : 'result';
+    }
+    if (S.checkin.status !== 'saved') return 'checkin';
+    if (c && c.state === 'resolved') return 'resolved';
+    return 'quiet';
+  }
+
+  /* ---------- Shared fragments ---------- */
+
+  function deferControls() {
+    if (S.defer) {
+      var due = S.now >= S.defer.dueAt;
+      return '<p class="notice">' + (due ? 'Deferred check is due now' : 'Deferred until ' + n(fmt(S.defer.dueAt))) +
+        '. Alertness is still not assessed.</p>' +
+        '<div class="btn-row">' + btn('start-check', 'Start 3-min alertness check', 'primary') + btn('defer-clear', 'Change time', 'quiet') + '</div>';
+    }
+    return '<div class="btn-row">' + btn('start-check', 'Start 3-min alertness check', 'primary') + '</div>' +
+      '<div class="stack-sm"><p class="sm muted">Not now? Pick when to be reminded. The check stays pending.</p><div class="btn-row">' +
+      [15, 30, 60].map(function (m) { return btn('defer:' + m, 'At ' + fmt(S.now + m), ''); }).join('') + '</div></div>';
+  }
+  function recheckControls() {
+    if (S.recheck) {
+      var due = S.now >= S.recheck.dueAt;
+      return '<p class="notice">' + (due ? 'Re-check is due now' : 'Re-check due at ' + n(fmt(S.recheck.dueAt))) + '.</p>' +
+        '<div class="btn-row">' + btn('start-check', 'Start re-check', due ? 'primary' : '') + btn('recheck-clear', 'Change time', 'quiet') + '</div>';
+    }
+    return '<div class="stack-sm"><p class="sm">Choose a re-check time. The plan allows 30 to 60 min after rest.</p><div class="btn-row">' +
+      [30, 60].map(function (m) { return btn('recheck:' + m, 'At ' + fmt(S.now + m), ''); }).join('') + '</div></div>';
+  }
+
+  function evSleepiness() {
+    var c = S.checkin;
+    if (c.status !== 'saved') return '';
+    return '<li class="ev"><div><div class="label">Sleepiness, self-rated</div><div class="val">' + c.kss + ' <small>of 9</small></div></div>' +
+      '<div class="stack-sm"><p>“' + KSS[c.kss] + '”. Higher is sleepier.</p><p class="cap">Entered ' + fmt(c.savedAt) + ' · ' + age(c.savedAt) + ' · Karolinska scale</p></div></li>';
+  }
+  // Micro-telemetry. Sleep: reading against the sourced crew average (Dev et al. 2024), full 0-8 h scale.
+  function trackSleep() {
+    var cur = SLEEP.minutes / 480 * 100, avg = 6.4 / 8 * 100, off = S.checkin.sleep === 'no';
+    var text = off ? 'Marked wrong by you · not used' : '0–8 h · mark: crew avg 6.4 h<br>amber: 0.6 h under';
+    return '<div class="track" role="img" aria-label="Sleep 5 h 48 min on a 0 to 8 h scale. Crew average in flight about 6.4 h. ' +
+      (off ? 'Recording marked wrong by you, not used.' : 'About 0.6 h under.') + '">' +
+      '<div class="rail' + (off ? ' off' : '') + '"><span class="fill" style="width:' + cur + '%"></span>' +
+      (off ? '' : '<span class="gap" style="left:' + cur + '%;width:' + (avg - cur) + '%"></span>') +
+      '<span class="mark" style="left:' + avg + '%"></span></div><p class="cap" aria-hidden="true">' + text + '</p></div>';
+  }
+  // HRV has no baseline or reference yet, so the track shows baseline progress, not a comparison.
+  function trackHrv() {
+    return '<div class="track" role="img" aria-label="Baseline: 1 of 7 in-flight nights recorded. No reference yet to compare 41 ms against.">' +
+      '<div class="rail seg"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+      '<p class="cap" aria-hidden="true">Baseline nights 1 of 7<br>no reference yet</p></div>';
+  }
+  function evSleep() {
+    var q = S.checkin.sleep === 'no' ? 'You marked this recording as wrong. It is not used.'
+      : S.checkin.sleep === 'yes' ? 'Confirmed by you.' : 'Not confirmed yet.';
+    return '<li class="ev"><div><div class="label">Sleep, last night</div><div class="val">5 <small>h</small> 48 <small>min</small></div>' + trackSleep() + '</div>' +
+      '<div class="stack-sm"><p>Under 6 h. Crews average about 6.4 h in flight (Dev et al. 2024). ' + q + '</p>' +
+      '<p class="cap">Recorded ' + SLEEP.from + ' to ' + SLEEP.to + ' · ended ' + age(SLEEP.endedAt) + ' · sample</p></div></li>';
+  }
+  function evHrv() {
+    return '<li class="ev"><div><div class="label">HRV (RMSSD), sleep window</div><div class="val">41 <small>ms</small></div>' + trackHrv() + '</div>' +
+      '<div class="stack-sm"><p>Personal baseline unavailable: 1 night recorded, 7 in-flight nights needed. Not used in today’s decision.</p>' +
+      '<p class="cap">Recorded ' + SLEEP.from + ' to ' + SLEEP.to + ' · sample</p></div></li>';
+  }
+  function evSession(i) {
+    var r = S.sessions[i];
+    var cmp = r.z >= 0 ? r.z.toFixed(1) + ' SD slower than' : Math.abs(r.z).toFixed(1) + ' SD faster than';
+    return '<li class="ev"><div><div class="label">Alertness check</div><div class="val">' + r.speed.toFixed(2) + ' <small>speed</small></div></div>' +
+      '<div class="stack-sm"><p>' + cmp + ' the NASA ISS pre-flight reference. ' + pl(r.lapses, 'lapse') + ', ' + pl(r.falseStarts, 'false start') + '. Your own baseline: unavailable.</p>' +
+      '<p class="cap">Completed ' + fmt(r.at) + ' · ' + age(r.at) + ' · sample session</p></div></li>';
+  }
+
+  /* ---------- Overview ---------- */
+
+  function primaryPanel() {
+    var st = primaryState(), c = S.concern, h = '', ev = '';
+    if (st === 'checkin') {
+      var answered = [S.checkin.mood, S.checkin.kss, S.checkin.sleep].filter(function (v) { return v !== null; }).length;
+      h = '<h3>Next task</h3><div class="title-row">' + chip('due', 'Due') + '<h1 tabindex="-1">Daily check-in</h1></div>' +
+        '<p>3 questions, under 1 minute. Today’s summary needs your sleepiness and mood.</p>' +
+        (answered ? '<p class="notice">Draft kept: ' + answered + ' of 3 answered.</p>' : '') +
+        '<p class="state">Today’s health summary: not assessed yet.</p>' +
+        '<div class="btn-row">' + btn('open-checkin', answered ? 'Resume check-in' : 'Start check-in', 'primary') + '</div>';
+      ev = evSleep() + evHrv();
+    } else if (st === 'check') {
+      h = '<h3>Needs your attention</h3><div class="title-row">' + chip('watch', 'Watch') + '<h1 tabindex="-1">Alertness check recommended</h1></div>' +
+        '<p>' + c.cause + '</p>' +
+        '<p class="state watch">Current alertness: not assessed.</p>' +
+        (S.invalidAt !== null ? '<p class="notice">The attempt at ' + n(fmt(S.invalidAt)) + ' was interrupted. It was not scored. Run it again when ready.</p>' : '') +
+        deferControls();
+      ev = evSleepiness() + (sleepUsable() ? evSleep() : '') + evHrv();
+    } else if (st === 'result') {
+      var r = S.sessions[c.session];
+      h = '<h3>Needs your attention</h3><div class="title-row">' + chip(r.band, r.band === 'act' ? 'Act' : 'Watch') +
+        '<h1 tabindex="-1">Slower than reference on the ' + fmt(r.at) + ' check</h1></div>' +
+        '<p>Next: follow the fatigue countermeasure steps and record what you did.</p>' +
+        '<p class="state watch">Concern open. No action recorded yet.</p>' +
+        '<div class="btn-row">' + btn('open-result:' + c.session, 'Open next step', 'primary') + '</div>';
+      ev = evSession(c.session) + evSleepiness() + (sleepUsable() ? evSleep() : '');
+    } else if (st === 'followup') {
+      h = '<h3>Needs your attention</h3><div class="title-row">' + chip('watch', 'Watch') +
+        '<h1 tabindex="-1">' + (S.recheck ? 'Re-check due at ' + fmt(S.recheck.dueAt) : 'Schedule a re-check') + '</h1></div>' +
+        '<p>Recorded ' + n(fmt(S.action.at)) + ': ' + S.action.text + '</p>' +
+        '<p class="state watch">Concern still open. A recorded action does not clear it. Only a re-check does.</p>' +
+        recheckControls();
+      ev = evSession(c.session) + evSleepiness();
+    } else if (st === 'resolved') {
+      var last = S.sessions[S.sessions.length - 1];
+      h = '<h3>Status</h3><div class="title-row">' + chip('ok', 'OK') + '<h1 tabindex="-1">Re-check within reference range</h1></div>' +
+        '<p>The ' + n(fmt(last.at)) + ' check cleared this morning’s alertness concern. No action needed now.</p>' +
+        '<p class="state ok">Covers alertness only. HRV has no baseline. Blood pressure and blood sugar are 6 days old.</p>' +
+        '<div class="btn-row">' + btn('open-result:' + (S.sessions.length - 1), 'See result', '') + '</div>';
+      ev = evSession(S.sessions.length - 1) + evSleepiness();
+    } else {
+      h = '<h3>Status</h3><div class="title-row">' + chip('ok', 'OK') + '<h1 tabindex="-1">No action needed from today’s data</h1></div>' +
+        '<p>Check-in saved ' + n(fmt(S.checkin.savedAt)) + '. No rule was triggered.</p>' +
+        '<p class="state">Covers sleep duration, sleepiness and mood. Not assessed: alertness (no check run), HRV (no baseline), blood pressure and blood sugar (6 days old).</p>' +
+        '<div class="btn-row">' + btn('start-check', 'Run alertness check before a critical task', '') + '</div>';
+      ev = evSleepiness() + evSleep() + evHrv();
+    }
+    return '<section class="panel stack" aria-labelledby="ev-h">' + h +
+      '<div class="stack-sm"><h2 id="ev-h">Evidence</h2><ul class="evidence">' + ev + '</ul>' +
+      '<div class="btn-row">' + btn('nav:measurements', 'All measurements', 'quiet') + '</div></div></section>';
+  }
+
+  function sidePanel() {
+    var ci = S.checkin.status === 'saved'
+      ? '<li><b>Daily check-in</b><p class="sm muted">Done ' + n(fmt(S.checkin.savedAt)) + '</p></li>'
+      : '<li><b>Daily check-in</b><p class="sm muted">Due now</p></li>';
+    var st = primaryState();
+    var chk = '';
+    if (S.recheck) chk = '<li><b>Alertness re-check</b><p class="sm muted">' + (S.now >= S.recheck.dueAt ? 'Due now' : 'Due ' + n(fmt(S.recheck.dueAt))) + '</p></li>';
+    else if (st === 'check') chk = '<li><b>Alertness check</b><p class="sm muted">' + (S.defer ? (S.now >= S.defer.dueAt ? 'Due now' : 'Deferred to ' + n(fmt(S.defer.dueAt))) : 'Pending') + '</p></li>';
+    var sym = S.symptoms.length
+      ? '<ul class="rows">' + S.symptoms.map(function (s) {
+          return '<li><p>' + s.list.join(', ') + ' · ' + s.region + (s.temp ? ' · ' + n(s.temp + ' °C') : '') + '</p><p class="cap">Reported ' + fmt(s.at) + ' · saved on this tablet</p></li>';
+        }).join('') + '</ul>'
+      : '<p class="sm muted">Available any time, even when measurements look ordinary.</p>';
+    return '<aside class="stack">' +
+      '<section class="panel stack-sm"><h2>Due and scheduled</h2><ul class="rows">' + ci + chk +
+      '<li><b>Blood pressure + blood sugar</b><p class="sm muted">Last entered 6 d ago. Next weekly entry: tomorrow. Not overdue.</p></li></ul></section>' +
+      '<section class="panel stack-sm"><h2>Symptoms and support</h2>' + sym +
+      '<div class="btn-row">' + btn('open-symptom', 'Report a symptom', '') + '</div>' +
+      '<p class="sm">' + flagLine() + '</p>' +
+      (S.flag ? '' : '<div class="btn-row">' + btn('open-flag', 'Flag for crew medical officer', 'quiet') + '</div>') +
+      '</section></aside>';
+  }
+  function flagLine() {
+    if (!S.flag) return '<span class="muted">Nothing shared. Records stay on this tablet.</span>';
+    if (S.flag.deliveredAt !== null) return 'Flag delivered ' + n(fmt(S.flag.deliveredAt)) + '. Not yet acknowledged.';
+    return 'Flag queued ' + n(fmt(S.flag.queuedAt)) + '. Not delivered: no ground link.';
+  }
+
+  function otherMeasurements() {
+    return '<section class="panel"><details><summary><span class="m-name">Other measurements</span><span class="m-age">4 records, none used in today’s decision</span></summary><div class="body"><ul class="rows">' +
+      '<li><b>Resting heart rate</b> ' + n('62 bpm') + '<p class="cap">Recorded overnight · in-flight baseline unavailable · sample</p></li>' +
+      '<li><b>Blood pressure</b> ' + n('118/76 mmHg') + '<p class="cap">Measured 6 d ago · not a current reading · sample</p></li>' +
+      '<li><b>Blood sugar</b> ' + n('94 mg/dL') + '<p class="cap">Measured 6 d ago · not a current reading · sample</p></li>' +
+      '<li><b>Temperature</b> not measured<p class="cap">Asked only when you report a symptom</p></li>' +
+      '</ul></div></details></section>';
+  }
+
+  // Rendered into the docked drawer (#dock-btns), not into the crew layout.
+  function demoButtons() {
+    return btn('clock:15', 'Clock +15 min', '') + btn('toggle-link', S.link ? 'Drop ground link' : 'Restore ground link', '') + btn('reset', 'Reset scenario', 'quiet');
+  }
+  function foot() {
+    return '<p class="foot">Sample scenario. Every value is a placeholder until the MMASH replay (PhysioNet, ODbL) is computed. Design prototype: no measurement is taken. Not a medical device.</p>';
+  }
+
+  function viewOverview() {
+    return '<div class="grid">' + primaryPanel() + sidePanel() + '</div>' + otherMeasurements() + foot();
+  }
+
+  /* ---------- Check-in (collect) ---------- */
+
+  function radios(name, count, selected, wordsFn) {
+    var out = '';
+    for (var i = 1; i <= count; i++) {
+      out += '<label><input type="radio" name="' + name + '" value="' + i + '"' + (selected === i ? ' checked' : '') +
+        ' aria-label="' + i + ', ' + wordsFn(i) + '"><span class="num">' + i + '</span></label>';
+    }
+    return out;
+  }
+  function viewCheckin() {
+    var c = S.checkin;
+    return '<section class="panel stack"><h3>Daily check-in · 3 questions</h3><h1 tabindex="-1">How are you this morning?</h1>' +
+      '<form id="checkin-form" class="stack">' +
+      '<fieldset class="choices"><legend>1. Mood</legend>' + radios('mood', 5, c.mood, function (i) { return MOOD[i]; }) + '</fieldset>' +
+      '<div class="ends"><span>1 Very low</span><span>5 Very good</span></div>' +
+      '<fieldset class="choices"><legend>2. Sleepiness right now</legend>' + radios('kss', 9, c.kss, function (i) { return KSS[i]; }) + '</fieldset>' +
+      '<div class="ends"><span>1 Extremely alert</span><span>9 Fighting sleep</span></div>' +
+      '<p class="notice" id="kss-anchor">' + (c.kss ? n(c.kss) + ' · ' + KSS[c.kss] : 'Pick a number to see its meaning.') + '</p>' +
+      '<fieldset class="choices words"><legend>3. Last night’s sleep: ' + n('5 h 48 min') + ', recorded ' + SLEEP.from + ' to ' + SLEEP.to + '</legend>' +
+      '<label><input type="radio" name="sleep" value="yes"' + (c.sleep === 'yes' ? ' checked' : '') + '>Looks right</label>' +
+      '<label><input type="radio" name="sleep" value="no"' + (c.sleep === 'no' ? ' checked' : '') + '>Not right</label></fieldset>' +
+      '<div class="btn-row">' + btn('save-checkin', 'Save check-in', 'primary', ' id="save-checkin"' + (c.mood && c.kss && c.sleep ? '' : ' disabled')) +
+      btn('nav:overview', 'Close, keep draft', 'quiet') + '</div>' +
+      '<p class="sm muted">Closing keeps your answers. Nothing is saved to the record until you press Save.</p>' +
+      '</form></section>';
+  }
+
+  /* ---------- Alertness check (test itself not implemented here) ---------- */
+
+  function viewCheck() {
+    var kssNote = S.checkin.status === 'saved'
+      ? 'Sleepiness already logged at ' + fmt(S.checkin.savedAt) + ' (' + S.checkin.kss + ' of 9). Not asked again within 2 h.'
+      : 'Sleepiness not logged today. The real flow asks for it first.';
+    return '<section class="panel stack"><h3>Alertness check · 3 minutes</h3><h1 tabindex="-1">Before you start</h1>' +
+      '<ol class="steps"><li>1 Sleepiness</li><li aria-current="step">2 Instructions</li><li>3 Test, 3 min</li><li>4 Result</li></ol>' +
+      '<p class="sm muted">' + kssNote + '</p>' +
+      '<p>Tap anywhere as soon as the signal appears. The test runs for 3 minutes.</p>' +
+      '<p>If you are interrupted for more than 2 minutes, the session is marked invalid and is not scored.</p>' +
+      '<div class="demo"><div class="tag">DEMO · THE TIMED TEST IS NOT BUILT IN THIS DESIGN PROTOTYPE</div>' +
+      '<p class="sm">These buttons load a labeled sample outcome. The clock jumps ahead to match.</p><div class="btn-row">' +
+      btn('replay-session', 'Load sample result, clock +3 min', 'primary') + btn('interrupt-session', 'Simulate interruption', '') + '</div></div>' +
+      '<div class="btn-row">' + btn('nav:overview', 'Back. Check stays pending', 'quiet') + '</div></section>';
+  }
+
+  /* ---------- Result: interpretation, then next step, then numbers ---------- */
+
+  function viewResult() {
+    var i = S.resultIndex, r = S.sessions[i], c = S.concern;
+    var isConcern = c && c.session === i && c.state === 'open';
+    var head, next;
+    if (r.band === 'ok') {
+      head = '<div class="title-row">' + chip('ok', 'OK') + '<h1 tabindex="-1">Within the reference range</h1></div>' +
+        '<p>Speed is within 1 SD of the reference, with ' + pl(r.lapses, 'lapse') + '. No action needed from this check.</p>';
+      next = '';
+    } else {
+      head = '<div class="title-row">' + chip(r.band, r.band === 'act' ? 'Act' : 'Watch') + '<h1 tabindex="-1">Slower than the reference</h1></div>' +
+        '<p>Treat your alertness as possibly reduced until a re-check. This is a screening result, not a fitness-for-duty decision.</p>';
+      var done = isConcern && S.action;
+      next = '<section class="panel stack"><h3>Next step · Fatigue countermeasure steps, draft v0.1</h3>' +
+        '<p class="big">Take a short movement break. Then double-check critical tasks today.</p>' +
+        '<p>Bright light and caffeine: only as your flight surgeon’s plan allows, and not close to your next sleep. No plan is loaded in this prototype.</p>' +
+        '<p class="sm muted">Illustrative wording, not medically reviewed. Based on <a href="' + HRP_URL + '" target="_blank" rel="noopener">NASA HRP: Risk from inadequate sleep and irregular schedules<span class="sr"> (opens in new tab)</span></a>.</p>' +
+        (isConcern
+          ? (done
+            ? '<p class="notice">Recorded ' + n(fmt(S.action.at)) + ': ' + S.action.text + ' The concern stays open until a re-check.</p>' + recheckControls()
+            : '<div class="btn-row">' + btn('record-action', 'Record: movement break taken', 'primary') + '</div><p class="sm muted">Recording an action does not clear the concern.</p>')
+          : '') +
+        '</section>';
+    }
+    var cmp = r.z >= 0 ? r.z.toFixed(1) + ' SD slower' : Math.abs(r.z).toFixed(1) + ' SD faster';
+    return '<div class="btn-row">' + btn('nav:overview', '‹ Overview', 'quiet') + '</div>' +
+      '<section class="panel stack"><h3>Alertness check result · completed ' + fmt(r.at) + '</h3>' + head +
+      '<p class="state">Compared with the NASA ISS pre-flight reference (24 astronauts, Dev et al. 2024), not with you. Your own baseline: unavailable, 0 of 3 rested sessions.</p></section>' +
+      next +
+      '<section class="panel"><details><summary><span class="m-name">Numbers and method</span><span class="m-age">' + cmp + ' · ' + pl(r.lapses, 'lapse') + ' · ' + pl(r.falseStarts, 'false start') + '</span></summary><div class="body">' +
+      '<dl class="kv">' +
+      '<dt>Speed score</dt><dd>' + n(r.speed.toFixed(2)) + ' · lower is faster · 10 − mean(1/RT)</dd>' +
+      '<dt>Reference</dt><dd>' + n(REF.mean.toFixed(2) + ' ± ' + REF.sd.toFixed(2)) + ' · (' + n(r.speed.toFixed(2) + ' − ' + REF.mean.toFixed(2)) + ') ÷ ' + n(REF.sd.toFixed(2)) + ' = ' + n(r.z.toFixed(2)) + ' SD</dd>' +
+      '<dt>Mean response speed</dt><dd>' + n(r.recip.toFixed(2) + ' per s') + ' · about ' + n(r.ms + ' ms') + '</dd>' +
+      '<dt>Lapses (≥355 ms)</dt><dd>' + n(r.lapses + ' of ' + r.trials) + ' scored trials</dd>' +
+      '<dt>False starts</dt><dd>' + n(r.falseStarts) + '</dd>' +
+      '<dt>Session validity</dt><dd>Complete, 3:00, first 3 trials not scored</dd>' +
+      '<dt>Band rule</dt><dd>Watch: 1 to 1.5 SD slower, or 3 to 5 lapses. Act: 1.5 SD or more, 6 or more lapses, or 4 or more false starts.</dd>' +
+      '</dl>' +
+      '<p class="cap">Sample session, not a live test. Tablet timing is not benchmarked, so the comparison is indicative only. Lapse threshold: Basner et al. 2011 (PVT-B).</p>' +
+      '</div></details></section>' + foot();
+  }
+
+  /* ---------- Measurements ---------- */
+
+  function mrow(name, val, ageText, body) {
+    return '<li><details><summary><span class="m-name">' + name + '</span><span class="m-val">' + val + '</span><span class="m-age">' + ageText + '</span></summary><div class="body">' + body + '</div></details></li>';
+  }
+  function viewMeasurements() {
+    var c = S.checkin, saved = c.status === 'saved';
+    var used = saved || S.sessions.length ? '' : '<p class="sm muted">Nothing assessed yet today. The check-in is due.</p>';
+    var sess = S.sessions.length
+      ? S.sessions.map(function (r, i) {
+          return '<p>' + n(fmt(r.at)) + ' · speed ' + n(r.speed.toFixed(2)) + ' · ' + n(r.z.toFixed(1) + ' SD') + ' vs reference · ' + pl(r.lapses, 'lapse') + '</p>';
+        }).join('') + '<p class="sm muted">A trend chart needs 3 or more comparable sessions.</p>'
+      : '<p>No session today.</p>';
+    return '<section class="panel stack"><h1 tabindex="-1">Measurements</h1>' +
+      '<p class="sm muted">Each record shows when it was measured, where it came from, and what it can and cannot tell you. Tap a row for method and source.</p></section>' +
+      '<section class="panel stack-sm"><h2>Used in today’s decision</h2>' + used + '<ul class="rows">' +
+      mrow('Sleepiness', saved ? c.kss + ' <small>of 9</small>' : '—', saved ? 'Entered ' + fmt(c.savedAt) + ' · ' + age(c.savedAt) : 'Not entered today',
+        '<p>Self-rated, Karolinska Sleepiness Scale. 1 is extremely alert, 9 is fighting sleep.' + (saved ? ' You chose “' + KSS[c.kss] + '”.' : '') + '</p><p>Rule: 7 or higher recommends an alertness check.</p><p class="cap">Åkerstedt & Gillberg 1990 · self-reported</p>') +
+      mrow('Sleep duration', '5 <small>h</small> 48 <small>min</small>', 'Recorded ' + SLEEP.from + ' to ' + SLEEP.to,
+        '<p>' + (c.sleep === 'no' ? 'You marked this recording as wrong. It is not used in any rule.' : c.sleep === 'yes' ? 'Confirmed by you.' : 'Not confirmed yet.') + '</p>' +
+        '<p>Rule: under 5 h alone, or under 6 h together with sleepiness 7 or higher, recommends an alertness check. Hours only. Sleep stages are not shown.</p>' +
+        '<p class="cap">Sample · stands in for the MMASH actigraphy replay · on Earth, not in flight</p>') +
+      mrow('Alertness check', S.sessions.length ? S.sessions[S.sessions.length - 1].speed.toFixed(2) + ' <small>speed</small>' : '—', S.sessions.length ? 'Latest ' + fmt(S.sessions[S.sessions.length - 1].at) : 'Not run today',
+        sess + '<p class="cap">Sample sessions · NASA ISS pre-flight reference (Dev et al. 2024)</p>') +
+      mrow('Mood', saved ? c.mood + ' <small>of 5</small>' : '—', saved ? 'Entered ' + fmt(c.savedAt) : 'Not entered today',
+        '<p>Self-rated. 1 is very low, 5 is very good.' + (saved ? ' You chose “' + MOOD[c.mood] + '”.' : '') + ' No rule uses mood alone.</p><p class="cap">Self-reported</p>') +
+      '</ul></section>' +
+      '<section class="panel stack-sm"><h2>Recorded, not used today</h2><ul class="rows">' +
+      mrow('HRV (RMSSD)', '41 <small>ms</small>', 'Sleep window ' + SLEEP.from + ' to ' + SLEEP.to,
+        '<p>Personal baseline unavailable: 1 night recorded, 7 in-flight nights needed. The low-HRV rule is off until then.</p>' +
+        '<p>Read during sleep because movement and posture distort daytime HRV. HRV normally drops in microgravity, so it is never compared with pre-flight values.</p>' +
+        '<p class="cap">Sample · stands in for MMASH RR intervals · window length and artifact handling to be fixed in the data script</p>') +
+      mrow('Resting heart rate', '62 <small>bpm</small>', 'Recorded overnight',
+        '<p>In-flight baseline unavailable. A lower heart rate in flight is a normal adaptation (Fritsch-Yelle et al. 1996).</p><p class="cap">Sample</p>') +
+      '</ul></section>' +
+      '<section class="panel stack-sm"><h2>Older records</h2><p class="sm muted">Not current readings. They say nothing about today.</p><ul class="rows">' +
+      mrow('Blood pressure', '118/76 <small>mmHg</small>', 'Measured 6 d ago',
+        '<p>Next weekly entry: tomorrow. Not overdue. The weekly interval is a team proposal and still needs a source.</p><p class="cap">Sample value · no open crew data exists</p>') +
+      mrow('Blood sugar', '94 <small>mg/dL</small>', 'Measured 6 d ago',
+        '<p>Inside the lab reference range 65–99 mg/dL when measured. Entered together with blood pressure.</p><p class="cap">Sample value · range from the OSD-575 lab panel</p>') +
+      mrow('Temperature', '—', 'Not measured',
+        '<p>Asked only when you report a symptom.</p>') +
+      '</ul></section>' + foot();
+  }
+
+  /* ---------- Plan and log ---------- */
+
+  function viewPlan() {
+    var plan = '';
+    plan += '<li><b>Daily check-in</b><p class="sm muted">' + (S.checkin.status === 'saved' ? 'Done ' + fmt(S.checkin.savedAt) : 'Due now') + '</p></li>';
+    var st = primaryState();
+    if (st === 'check') plan += '<li><b>Alertness check</b><p class="sm muted">' + (S.defer ? 'Deferred to ' + fmt(S.defer.dueAt) + '. Still not assessed.' : 'Pending. Not assessed.') + '</p></li>';
+    if (st === 'result') plan += '<li><b>Countermeasure steps</b><p class="sm muted">No action recorded. Concern open.</p></li>';
+    if (st === 'followup') plan += '<li><b>Alertness re-check</b><p class="sm muted">' + (S.recheck ? 'Due ' + fmt(S.recheck.dueAt) : 'No time chosen yet') + '. Concern open.</p></li>';
+    plan += '<li><b>Blood pressure + blood sugar</b><p class="sm muted">Tomorrow, weekly entry</p></li>';
+    var logHtml = S.log.length
+      ? '<ul class="rows log">' + S.log.map(function (e) { return '<li><span class="num">' + fmt(e.t) + '</span><span>' + e.text + '</span></li>'; }).join('') + '</ul>'
+      : '<p class="sm muted">Nothing recorded yet today.</p>';
+    return '<section class="panel stack"><h1 tabindex="-1">Plan and log</h1><p class="sm muted">What is due, and what has been recorded. Records are kept on this tablet.</p></section>' +
+      '<div class="grid"><section class="panel stack-sm"><h2>Log, newest first</h2>' + logHtml + '</section>' +
+      '<aside class="stack"><section class="panel stack-sm"><h2>Plan</h2><ul class="rows">' + plan + '</ul></section>' +
+      '<section class="panel stack-sm"><h2>Sharing</h2><p class="sm">' + flagLine() + '</p>' +
+      '<p class="cap">States: queued, delivered, acknowledged. Demo only: no message is sent.</p></section></aside></div>' + foot();
+  }
+
+  /* ---------- Symptom report ---------- */
+
+  function viewSymptom() {
+    var d = S.symptomDraft;
+    return '<section class="panel stack"><h3>Symptom report</h3><h1 tabindex="-1">What do you notice?</h1>' +
+      '<form id="symptom-form" class="stack">' +
+      '<fieldset class="choices words"><legend>Where</legend>' + REGIONS.map(function (r) {
+        return '<label><input type="radio" name="region" value="' + r + '"' + (d.region === r ? ' checked' : '') + '>' + r + '</label>';
+      }).join('') + '</fieldset>' +
+      '<fieldset class="choices words"><legend>What, pick up to 5</legend>' + SYMPTOMS.map(function (s) {
+        return '<label><input type="checkbox" name="sym" value="' + s + '"' + (d.list.indexOf(s) >= 0 ? ' checked' : '') + '>' + s + '</label>';
+      }).join('') + '</fieldset>' +
+      '<div class="field"><label for="temp" class="label">Temperature in °C, optional</label>' +
+      '<input id="temp" name="temp" inputmode="decimal" autocomplete="off" value="' + d.temp + '" aria-describedby="temp-err"><p class="err" id="temp-err" role="alert"></p></div>' +
+      '<div class="btn-row">' + btn('save-symptom', 'Save report', 'primary', ' id="save-symptom"' + (d.region && d.list.length ? '' : ' disabled')) +
+      btn('nav:overview', 'Close, keep draft', 'quiet') + '</div>' +
+      '<p class="sm muted">Saved on this tablet. Not shared unless you flag it for the crew medical officer.</p>' +
+      '</form></section>';
+  }
+
+  /* ---------- Flag preview ---------- */
+
+  function viewFlag() {
+    var items = [];
+    if (S.checkin.status === 'saved') items.push('Today’s check-in (mood, sleepiness, sleep confirmation)');
+    S.sessions.forEach(function (r) { items.push('Alertness check result from ' + fmt(r.at)); });
+    S.symptoms.forEach(function (s) { items.push('Symptom report from ' + fmt(s.at)); });
+    if (S.action) items.push('Recorded action from ' + fmt(S.action.at));
+    return '<section class="panel stack"><h3>Share</h3><h1 tabindex="-1">Flag for crew medical officer</h1>' +
+      '<dl class="kv"><dt>Recipient</dt><dd>Crew medical officer</dd>' +
+      '<dt>What is shared</dt><dd>' + (items.length ? items.join('<br>') : 'Nothing recorded yet today. The flag would carry no records.') + '</dd>' +
+      '<dt>Ground link</dt><dd>' + (S.link ? 'Available. The flag is delivered now.' : 'None. The flag stays queued on this tablet until a link returns.') + '</dd></dl>' +
+      '<div class="btn-row">' + btn('confirm-flag', 'Flag these records', 'primary') + btn('nav:overview', 'Cancel', 'quiet') + '</div>' +
+      '<p class="cap">Demo only: no message is sent.</p></section>';
+  }
+
+  /* ---------- Render ---------- */
+
+  var VIEWS = { overview: viewOverview, measurements: viewMeasurements, plan: viewPlan, checkin: viewCheckin, check: viewCheck, result: viewResult, symptom: viewSymptom, flag: viewFlag };
+  var lastView = null;
+
+  function render() {
+    var open = (S.concern && S.concern.state === 'open') ? 1 : 0;
+    document.getElementById('meta').innerHTML =
+      '<span>Crew member <b>M.A.</b></span><span>Clock <b>' + fmt(S.now) + '</b></span><span>Data <b>sample scenario</b></span>' +
+      '<span>Ground link <b>' + (S.link ? 'available' : 'none · last sync 05:40') + '</b></span>';
+    var tabs = [['overview', 'Overview'], ['measurements', 'Measurements'], ['plan', 'Plan & log']];
+    var top = (S.view === 'measurements' || S.view === 'plan') ? S.view : 'overview';
+    document.getElementById('nav').innerHTML = tabs.map(function (t) {
+      return '<button type="button" data-action="nav:' + t[0] + '"' + (top === t[0] ? ' aria-current="page"' : '') + '>' + t[1] +
+        (t[0] === 'overview' && open ? '<span class="count">· 1 open</span>' : '') + '</button>';
+    }).join('');
+    document.getElementById('main').innerHTML = VIEWS[S.view]();
+    document.getElementById('dock-btns').innerHTML = demoButtons();
+    if (lastView !== null && lastView !== S.view) {
+      var h = document.querySelector('#main h1');
+      if (h) { h.focus({ preventScroll: true }); document.getElementById('app').scrollIntoView({ block: 'nearest' }); }
+    }
+    lastView = S.view;
+  }
+
+  /* ---------- Actions ---------- */
+
+  function act(a) {
+    var parts = a.split(':'), name = parts[0], arg = parts[1];
+    switch (name) {
+      case 'nav': S.view = arg; break;
+      case 'open-checkin': S.view = 'checkin'; break;
+      case 'save-checkin':
+        S.checkin.status = 'saved'; S.checkin.savedAt = S.now;
+        log('Check-in saved: mood ' + S.checkin.mood + ' of 5, sleepiness ' + S.checkin.kss + ' of 9, sleep recording ' + (S.checkin.sleep === 'yes' ? 'confirmed' : 'marked wrong') + '.');
+        var cause = triggerCause();
+        if (cause && !S.concern) {
+          S.concern = { cause: cause, openedAt: S.now, state: 'open', session: null, resolvedAt: null };
+          log('Alertness check recommended. Rule: sleepiness 7 or higher.');
+        }
+        S.view = 'overview'; say('Check-in saved.');
+        break;
+      case 'start-check': S.view = 'check'; break;
+      case 'defer':
+        S.defer = { dueAt: S.now + Number(arg) };
+        log('Alertness check deferred to ' + fmt(S.defer.dueAt) + '. Still not assessed.');
+        say('Deferred to ' + fmt(S.defer.dueAt) + '.');
+        break;
+      case 'defer-clear': S.defer = null; break;
+      case 'interrupt-session':
+        S.now += 1; S.invalidAt = S.now;
+        log('Alertness check interrupted. Session invalid, not scored.');
+        S.view = 'overview'; say('Session interrupted. Not scored.');
+        break;
+      case 'replay-session':
+        S.now += 3;
+        var r = score(SAMPLE_SESSIONS[Math.min(S.sessions.length, SAMPLE_SESSIONS.length - 1)]);
+        r.at = S.now; S.sessions.push(r);
+        var idx = S.sessions.length - 1;
+        S.defer = null; S.invalidAt = null;
+        log('Alertness check completed: ' + r.z.toFixed(1) + ' SD vs reference, ' + pl(r.lapses, 'lapse') + ', ' + pl(r.falseStarts, 'false start') + '. Band: ' + (r.band === 'ok' ? 'OK' : r.band === 'watch' ? 'Watch' : 'Act') + '. Sample session.');
+        if (r.band === 'ok') {
+          if (S.concern && S.concern.state === 'open') {
+            S.concern.state = 'resolved'; S.concern.resolvedAt = S.now; S.recheck = null;
+            log('Alertness concern cleared by the ' + fmt(S.now) + ' check.');
+          }
+        } else {
+          if (!S.concern || S.concern.state !== 'open') S.concern = { cause: 'Alertness check slower than reference.', openedAt: S.now, state: 'open', session: null, resolvedAt: null };
+          S.concern.session = idx; S.action = null; S.recheck = null;
+        }
+        S.resultIndex = idx; S.view = 'result';
+        break;
+      case 'open-result': S.resultIndex = Number(arg); S.view = 'result'; break;
+      case 'record-action':
+        S.action = { at: S.now, text: 'movement break taken.' };
+        log('Action recorded: movement break taken. Concern still open.');
+        say('Action recorded. Concern still open.');
+        break;
+      case 'recheck':
+        S.recheck = { dueAt: S.now + Number(arg) };
+        log('Re-check scheduled for ' + fmt(S.recheck.dueAt) + '.');
+        say('Re-check scheduled for ' + fmt(S.recheck.dueAt) + '.');
+        break;
+      case 'recheck-clear': S.recheck = null; break;
+      case 'open-symptom': S.view = 'symptom'; break;
+      case 'save-symptom':
+        var t = S.symptomDraft.temp.trim().replace(',', '.');
+        if (t !== '' && !(Number(t) >= 30 && Number(t) <= 45)) {
+          document.getElementById('temp-err').textContent = 'Enter a temperature between 30 and 45 °C, or leave it empty.';
+          document.getElementById('temp').focus();
+          return;
+        }
+        S.symptoms.push({ at: S.now, region: S.symptomDraft.region, list: S.symptomDraft.list.slice(), temp: t });
+        log('Symptom reported: ' + S.symptomDraft.list.join(', ') + ' (' + S.symptomDraft.region + ')' + (t ? ', ' + t + ' °C' : '') + '. Not shared.');
+        S.symptomDraft = { region: null, list: [], temp: '' };
+        S.view = 'overview'; say('Symptom report saved.');
+        break;
+      case 'open-flag': S.view = 'flag'; break;
+      case 'confirm-flag':
+        S.flag = { queuedAt: S.now, deliveredAt: S.link ? S.now : null };
+        log(S.link ? 'Flag for crew medical officer delivered. Not yet acknowledged.' : 'Flag for crew medical officer queued. No ground link.');
+        S.view = 'overview';
+        break;
+      case 'clock': S.now += Number(arg); break;
+      case 'toggle-link':
+        S.link = !S.link;
+        if (S.link && S.flag && S.flag.deliveredAt === null) { S.flag.deliveredAt = S.now; log('Ground link restored. Queued flag delivered. Not yet acknowledged.'); }
+        break;
+      case 'reset': reset(); lastView = null; break;
+    }
+    render();
+  }
+
+  // On document, so the docked demo drawer (outside #app) is covered too.
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-action]');
+    if (!el || el.disabled) return;
+    e.preventDefault();
+    act(el.getAttribute('data-action'));
+  });
+
+  // Draft answers are kept on every change, so closing a form loses nothing.
+  document.getElementById('app').addEventListener('input', function (e) {
+    var f = e.target.form;
+    if (!f) return;
+    if (f.id === 'checkin-form') {
+      var d = new FormData(f), c = S.checkin;
+      c.mood = d.get('mood') ? Number(d.get('mood')) : null;
+      c.kss = d.get('kss') ? Number(d.get('kss')) : null;
+      c.sleep = d.get('sleep') || null;
+      if (c.kss) document.getElementById('kss-anchor').innerHTML = n(c.kss) + ' · ' + KSS[c.kss];
+      document.getElementById('save-checkin').disabled = !(c.mood && c.kss && c.sleep);
+    } else if (f.id === 'symptom-form') {
+      var s = new FormData(f), list = s.getAll('sym');
+      if (list.length > 5) { e.target.checked = false; list = new FormData(f).getAll('sym'); }
+      S.symptomDraft = { region: s.get('region') || null, list: list, temp: String(s.get('temp') || '') };
+      document.getElementById('save-symptom').disabled = !(S.symptomDraft.region && list.length);
+    }
+  });
+  document.getElementById('app').addEventListener('submit', function (e) { e.preventDefault(); });
+
+  reset();
+  render();
+})();
+</script>
+</body>
+</html>
