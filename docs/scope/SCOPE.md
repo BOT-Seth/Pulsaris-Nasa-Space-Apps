@@ -53,7 +53,7 @@ Collect passively wherever possible. Only ask the astronaut for what a sensor ca
    - Each indicator is one row: latest value + status. Tap for detail
 2. **Daily check-in (≤ 60 s):** mood + sleepiness taps, confirm last night's sleep
 3. **On-demand entry** for BP, temperature and blood sugar, prompted only when relevant
-4. **Rules that flag issues:** each indicator is compared with the astronaut's own baseline or a safe range → OK / Watch / Act
+4. **Rules that flag issues:** each indicator is compared with the astronaut's own baseline or a safe range → OK / Watch / Act. **Heart rate, HRV and blood pressure are compared with an in-flight baseline, not pre-flight**: all three normally drop in microgravity (Fritsch-Yelle et al. 1996), so a pre-flight baseline would raise false alarms every day
 5. **Guidance:** for each flag, one plain-language action, plus "contact flight surgeon" when it's Act-level
 6. **Triggered alertness check:** Signal Lock (3-min reaction test), run **only** when HRV/sleep/sleepiness is flagged or before a critical task. One result + one action. See MINIGAME.md
 7. **Optional 2-min breathing** (Orbit Breath) offered after a low-HRV flag
@@ -108,12 +108,15 @@ Full detail, plus sources we reviewed but **don't** use in the MVP, is in [RESEA
 | **Tjoa E, Guan C (2021).** A survey on explainable AI: toward medical XAI. *IEEE Transactions on Neural Networks and Learning Systems*. doi:10.1109/TNNLS.2020.3027314 | Peer-reviewed; top IEEE journal | Every alert **names its cause** ("HRV 22% below your baseline") | General medical AI, not astronaut-specific |
 | **Overbey EG, et al. (2024).** The Space Omics and Medical Atlas (SOMA)… *Nature*. doi:10.1038/s41586-024-07639-y, and **Garrett-Bakelman FE, et al. (2019).** The NASA Twins Study. *Science*. doi:10.1126/science.aau8650 | Peer-reviewed; *Nature* and *Science*; NASA-involved consortia | Responses differ by person, so we use **personal baselines**, not one cutoff for everyone | Very small crews; molecular focus |
 | **Afshinnekoo E, et al. (2020).** Fundamental biological features of spaceflight. *Cell*. doi:10.1016/j.cell.2020.10.050 | Peer-reviewed; *Cell* | The app **screens and points to follow-up; it doesn't diagnose** | Synthesis paper, not a device study |
+| **Fritsch-Yelle JM, Charles JB, Jones MM, Wood ML (1996).** Microgravity decreases heart rate and arterial pressure in humans. *Journal of Applied Physiology* 80(3):910–914. doi:10.1152/jappl.1996.80.3.910 | Peer-reviewed; NASA JSC study (DSO 602/463 in NASA's Life Sciences Portal); **24-h in-flight Holter + BP** during normal routines | In flight, **heart rate, diastolic BP and their variability all drop** compared with pre-flight. So HR, HRV and BP rules use an **in-flight baseline**, and the app tells the astronaut a lower in-flight heart rate is normal. Arrhythmias didn't rise during routine flight, so arrhythmia detection stays out of scope | Short Shuttle flights (4–14 days); 1990s equipment |
+| **Dijk DJ, et al. (2001).** Sleep, performance, circadian rhythms, and light-dark cycles during two space shuttle flights. *Am J Physiol Regul Integr Comp Physiol* 281(5):R1647. doi:10.1152/ajpregu.2001.281.5.r1647 | Peer-reviewed; astronauts measured in flight on two Shuttle missions (actigraphy + polysomnography) | **Independent confirmation of ~6.5 h in-flight sleep** (matches Dev et al.'s 6.4 h), plus measured performance drops with sleep loss in space. Supports the sleep trigger and the alertness check | 5 astronauts; Shuttle missions |
 
 ### Data sources
 | Source | Credibility | What we use it for | Limits |
 |---|---|---|---|
 | **MMASH** on PhysioNet (Rossi A, et al. 2020, *Data* 5(4):91, doi:10.3390/data5040091; dataset doi:10.13026/cerq-fc86) | Published, peer-reviewed data paper; hosted on **PhysioNet** (MIT / NIH-funded repository) | **Real beat-to-beat heart data (for HRV) and sleep data** replayed in the demo. License ODbL v1.0: must credit it | 22 young men, 24 h each, on Earth |
 | **NASA OSDR** OSD-939 (Davis CM, et al. 2015, *PLOS ONE*, doi:10.1371/journal.pone.0144556) | NASA's official repository + peer-reviewed paper | **Supporting evidence only:** space-type radiation impaired a rat version of the PVT. No rat numbers are used in scoring | Rats, not humans |
+| **NASA Life Sciences Portal (NLSP)**: human cardiovascular experiments, ISS + Shuttle | NASA's official archive of crew experiments | **Evidence only.** Points us to the peer-reviewed results above (DSO 602/463). The in-flight heart and BP numbers themselves are **restricted** (formal data request), so they're not demo data | Of 106 experiments, 7 are fully public and 16 partly; 37 international ones never archived data |
 | **NASA Human Research Program** (5 Hazards; Risks of Human Spaceflight) | Official NASA, linked by the challenge | Framing: which hazards the app addresses | Overview pages, not data |
 
 ## Open conflicts with the design docs (team to decide)

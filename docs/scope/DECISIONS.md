@@ -4,6 +4,8 @@ Newest at the top. Record what was decided, why, and by whom. Open questions liv
 
 | Date | Decision | Why | Status |
 |---|---|---|---|
+| 2026-11-14 | HR, HRV and BP rules compare with an **in-flight rolling baseline**, never pre-flight. The low-HRV trigger is off for the first 7 days of flight while that baseline builds | HR, diastolic BP and HRV all normally drop in microgravity (Fritsch-Yelle et al. 1996; NASA DSO 602/463), so pre-flight comparisons would flag everyone daily | Proposed, needs team OK |
+| 2026-11-14 | NLSP is used as **evidence, not demo data** | In-flight cardiovascular recordings there are restricted or were never archived | Decided (no data available) |
 | 2026-11-14 | **No live wearable hookup.** Data is only pulled from published datasets. Moved from "parked" to "not doing" | Team decision (Aileen) | **Decided** |
 | 2026-11-14 | Source rule: only peer-reviewed journals (plus labeled peer-reviewed conference papers) and official data repositories | Team decision (Aileen) | **Decided** |
 | 2026-11-14 | Red band at **≥ 1.5 SD** below baseline (was > 2 SD); yellow at 1–1.5 SD | Matches the low-score cutoff in NASA's ISS cognition study (Dev et al. 2024) | Proposed, needs team OK |

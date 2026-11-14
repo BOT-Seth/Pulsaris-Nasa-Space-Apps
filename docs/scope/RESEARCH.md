@@ -114,6 +114,40 @@ https://physionet.org/content/mmash/1.0.0/ · DOI 10.13026/cerq-fc86 · checked 
 | Sleep Heart Health Study (NSRR / sleepdata.org) | Large and has HRV, but needs a data-use request: too slow for a hackathon |
 | Chua et al. 2012, *Sleep* (24 men, 40 h awake, PVT every 2 h + ECG) | **Exactly** PVT + HRV under sleep loss, but no open raw data found. Use the paper's finding (HRV tracked PVT lapses) as evidence, not data |
 
+## NASA Life Sciences Portal (NLSP): cardiovascular experiments
+Source: https://nlsp.nasa.gov/explore, filtered to experiments in cardiovascular physiology, ISS + Shuttle programs, human subjects. Searched 2026-11-14 through the portal's own data API.
+
+### What's there
+- **106 experiments.** About 60 record heart rate, HRV, ECG or blood pressure.
+- **Data access:**
+
+| Archive status | Count |
+|---|---|
+| All datasets public | 7 |
+| Some public, rest by data request | 16 |
+| All by data request (privacy-protected) | 25 |
+| Data collection ongoing (by request) | 4 |
+| Work in progress | 3 |
+| No data submitted | 14 |
+| International study, data not archived with NASA | 37 |
+
+- **The ISS heart-rhythm and HRV studies are all international** (JAXA Biorhythms and Biological Rhythms 48, ESA Rhythm and Cardiocog-2, Roscosmos Pneumocard and Sonokard). **None archived data with NASA.**
+- **The most relevant NASA study (DSO 602 + DSO 463)** has only its test procedures public. The heart and BP recordings need a formal data request, which isn't feasible in a hackathon.
+
+**So NLSP gives us evidence, not demo data.** MMASH stays the demo dataset.
+
+### Findings we use
+| Source | Finding (from NLSP results + the published abstract) | Why it helps our app |
+|---|---|---|
+| **DSO 602 / DSO 463** → Fritsch-Yelle JM, et al. (1996), *J Appl Physiol* 80(3):910–914, doi:10.1152/jappl.1996.80.3.910. 12 Shuttle astronauts, 24-h Holter ECG + automatic BP every 20–30 min, before, during and after 4–14-day flights | In flight, **heart rate, diastolic pressure and the variability of both were significantly reduced**. **Day-night swings were smaller.** Premature ventricular beats also dropped, so **routine flight didn't increase arrhythmias**. The authors conclude microgravity itself isn't a chronic cardiovascular stress | **1. In-flight baselines.** If the app compared in-flight HR, HRV or BP with pre-flight values, every astronaut would look "low" every day. That means false alarms and wasted crew time. Rules now use an in-flight rolling baseline. **2. Plain-language guidance.** "Your heart rate is lower than on Earth; that's a normal adaptation" prevents needless worry. **3. Scope stays tight.** No arrhythmia detection (it needs ECG and isn't an in-flight routine problem). The pre-EVA alertness trigger stays, since past Shuttle EVAs saw rhythm problems (about 40%, per DSO 463) |
+| **Dijk DJ, et al. (2001)**, *Am J Physiol Regul Integr Comp Physiol* 281(5):R1647, doi:10.1152/ajpregu.2001.281.5.r1647. 5 astronauts on two Shuttle flights (16 and 10 days) | Sleep was **only ~6.5 h a day** (actigraphy + questionnaires). Neurobehavioral **performance dropped**. Circadian rhythms were disrupted | A **second, independent** source for ~6.5 h in-flight sleep (Dev et al. 2024 found 6.4 h on the ISS), so the sleep trigger rests on two studies. It also backs the alertness check: sleep loss in space measurably hurts performance |
+
+### Limits to state openly
+- Shuttle flights were short (4–16 days). ISS and Moon/Mars missions are much longer.
+- 1990s recording equipment.
+- Small crews (5–12 people).
+- **The demo dataset (MMASH) is from people on Earth**, who have normal day-night HRV swings. In-flight swings would be smaller. Say this when presenting the demo.
+
 ## Team research journal review (20 articles)
 Source: *Space Medicine Wearable Research Journal* (team document, literature window 2018–2026), reviewed 2026-11-14.
 

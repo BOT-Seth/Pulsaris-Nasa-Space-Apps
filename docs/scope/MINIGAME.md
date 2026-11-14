@@ -22,7 +22,7 @@ All thresholds are **starting points** to tune later. They are compared with the
 
 | Trigger | Suggested rule | Routes to |
 |---|---|---|
-| Low HRV | **Sleep-window** RMSSD (or ln RMSSD) more than 1 SD below the 7-day rolling mean. Measured during sleep so exercise and posture don't skew it | Stress / recovery branch |
+| Low HRV | **Sleep-window** RMSSD (or ln RMSSD) more than 1 SD below the **in-flight** 7-day rolling mean. Measured during sleep so exercise and posture don't skew it. **Never compared with pre-flight HRV**: HRV normally drops in microgravity (Fritsch-Yelle et al. 1996), so that would flag every astronaut every day. In the first 7 days of flight, while the rolling baseline builds, this trigger is off and the sleep, sleepiness and pre-task triggers still run | Stress / recovery branch |
 | Short sleep | **< 5 h** alone, **or** < 6 h *plus* low HRV or sleepiness ≥ 7. Astronauts average ~6.4 h a night in flight (Dev et al. 2024), so "< 6 h" alone would fire too often for the crew-time budget | Sleepiness branch |
 | Long wakefulness | Awake more than 16 h | Sleepiness branch |
 | Self-report | Sleepiness check-in at 7 or higher on the 1–9 scale (Karolinska-style) | Sleepiness branch |
