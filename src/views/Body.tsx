@@ -4,7 +4,8 @@ import { INDICATORS } from '../domain/rules';
 import { age, clock, sameDay } from '../domain/time';
 import type { RegionId } from '../domain/types';
 import { useApp } from '../state/store';
-import { Btn, Chip, Value } from '../ui/primitives';
+import { Body3D, type BodyLabel } from '../ui/Body3D';
+import { Btn, Chip, Value, plain } from '../ui/primitives';
 import { Back, FlagLine, Foot, chipWord, useNav } from '../ui/shared';
 
 const ORDER: RegionId[] = ['head', 'chest', 'abdomen', 'limbs', 'whole'];
@@ -44,6 +45,16 @@ export function BodyMap({ region }: { region?: RegionId }) {
   const inRegion = (r: RegionId) => INDICATORS.filter((i) => INFO[i].region === r);
   const flagged = ORDER.filter((r) => inRegion(r).some((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act'));
   const here = symptoms.filter((s) => s.region === sel && sameDay(s.at, now));
+  // Leader-line labels: the region's live values, or an honest "not measured".
+  const labels: BodyLabel[] = (['head', 'chest', 'abdomen', 'limbs'] as const).map((r) => {
+    const withValue = inRegion(r).filter((i) => { const x = ev.statuses[i].latest; return x && sameDay(x.at, now); }).slice(0, 2);
+    return {
+      id: r, title: REGIONS[r].name, flagged: flagged.includes(r),
+      lines: withValue.length
+        ? withValue.map((i) => `${INFO[i].short} ${plain(ev.statuses[i].latest!)}`)
+        : [inRegion(r).length ? 'No reading today' : 'Not measured here'],
+    };
+  });
   return (
     <>
       <section className="panel stack-sm">
@@ -52,7 +63,10 @@ export function BodyMap({ region }: { region?: RegionId }) {
       </section>
       <div className="split even">
         <section className="panel stack">
-          <Figure selected={sel} flagged={flagged} onPick={setSel} />
+          <div className="body3d-wrap">
+            <Body3D selected={sel} flagged={flagged} onPick={setSel} labels={labels} fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} />
+          </div>
+          <p className="cap">Drag to spin 360°. Tap a region. AI-generated visualization.</p>
           <div className="regions" role="group" aria-label="Regions">
             {ORDER.map((r) => <Btn key={r} small pressed={sel === r} onClick={() => setSel(r)}>{REGIONS[r].name}{flagged.includes(r) ? ' · flagged' : ''}</Btn>)}
           </div>
@@ -139,7 +153,9 @@ export function SymptomForm({ region }: { region?: RegionId }) {
         </section>
         <section className="panel stack right">
           <h2>Tap where you feel it</h2>
-          <Figure selected={sel} flagged={[]} onPick={(r) => set({ region: r })} />
+          <div className="body3d-wrap">
+            <Body3D selected={sel} flagged={[]} onPick={(r) => set({ region: r })} height={420} fallback={<Figure selected={sel} flagged={[]} onPick={(r) => set({ region: r })} />} />
+          </div>
         </section>
       </div>
     </>

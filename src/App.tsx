@@ -30,11 +30,12 @@ function fromHash(): Route {
   const [view, arg] = window.location.hash.replace(/^#\/?/, '').split('/');
   if (view === 'indicator' && INDICATORS.includes(arg as IndicatorId)) return { view, id: arg as IndicatorId };
   if (view === 'entry' && (arg === 'bp' || arg === 'temp')) return { view, kind: arg };
+  if (view === 'result' && arg) return { view, id: arg };
   if ((SIMPLE as readonly string[]).includes(view)) return { view } as Route;
   return { view: 'today' };
 }
 function toHash(r: Route): string {
-  return r.view === 'indicator' ? `#/indicator/${r.id}` : r.view === 'entry' ? `#/entry/${r.kind}` : r.view === 'today' || r.view === 'result' ? '#/' : `#/${r.view}`;
+  return r.view === 'indicator' ? `#/indicator/${r.id}` : r.view === 'entry' ? `#/entry/${r.kind}` : r.view === 'result' ? `#/result/${r.id}` : r.view === 'today' ? '#/' : `#/${r.view}`;
 }
 
 function View({ route }: { route: Route }) {
