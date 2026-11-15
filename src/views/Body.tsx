@@ -6,7 +6,7 @@ import type { RegionId } from '../domain/types';
 import { useApp } from '../state/store';
 import { Body3D, type BodyLabel } from '../ui/Body3D';
 import { Btn, Chip, Value, plain } from '../ui/primitives';
-import { Back, FlagLine, Foot, chipWord, useNav } from '../ui/shared';
+import { Foot, chipWord, useNav } from '../ui/shared';
 
 const ORDER: RegionId[] = ['head', 'chest', 'abdomen', 'limbs', 'whole'];
 
@@ -109,6 +109,8 @@ export function BodyMap({ region }: { region?: RegionId }) {
   );
 }
 
+const SIDES = ['Left', 'Right', 'Both', 'Centre', 'Not sure'] as const;
+
 export function SymptomForm({ region }: { region?: RegionId }) {
   const { symptomDraft: d, setSymptomDraft, saveSymptom } = useApp();
   const { go } = useNav();
@@ -116,6 +118,7 @@ export function SymptomForm({ region }: { region?: RegionId }) {
   const sel = d.region ?? region ?? null;
   const set = (patch: Partial<typeof d>) => setSymptomDraft({ ...d, region: sel, ...patch });
   const toggle = (s: string) => set({ list: d.list.includes(s) ? d.list.filter((x) => x !== s) : d.list.length < 5 ? [...d.list, s] : d.list });
+  const ready = !!(sel && d.list.length);
   const submit = () => {
     const t = d.temp.trim().replace(',', '.');
     if (t !== '' && !(Number(t) >= 30 && Number(t) <= 45)) { setErr('Enter a temperature between 30 and 45 °C, or leave it empty.'); return; }
@@ -124,41 +127,47 @@ export function SymptomForm({ region }: { region?: RegionId }) {
     go({ view: 'today' });
   };
   return (
-    <>
-      <Back to={{ view: 'today' }} label="Today. Draft is kept" />
-      <div className="split even">
-        <section className="panel stack">
-          <h3>Symptom report</h3>
-          <h1 tabIndex={-1}>What do you notice?</h1>
-          <form className="stack" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-            <fieldset className="choices words">
-              <legend>Where</legend>
-              {ORDER.map((r) => <label key={r}><input type="radio" name="region" checked={sel === r} onChange={() => set({ region: r })} />{REGIONS[r].name}</label>)}
-            </fieldset>
-            <fieldset className="choices words">
-              <legend>What, up to 5</legend>
-              {SYMPTOMS.map((s) => <label key={s}><input type="checkbox" checked={d.list.includes(s)} onChange={() => toggle(s)} />{s}</label>)}
-            </fieldset>
-            <div className="field">
-              <label htmlFor="stemp" className="label">Temperature, optional</label>
-              <div className="in"><input id="stemp" inputMode="decimal" autoComplete="off" value={d.temp} onChange={(e) => set({ temp: e.target.value })} aria-label="Temperature in degrees Celsius, optional" /><span>°C</span></div>
-            </div>
-            <p className="err" role="alert">{err}</p>
-            <div className="row">
-              <Btn type="submit" variant="primary" disabled={!(sel && d.list.length)}>Save report</Btn>
-              <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
-            </div>
-            <p className="sm muted">Saved on this tablet. Not shared unless you flag it for the crew medical officer.</p>
-          </form>
+    <form className="today form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      <div className="main-col">
+        <section className="decision task formhead" aria-labelledby="sy-h">
+          <p className="mark lg task"><b>Symptom report</b><span className="scope">kept on this tablet</span></p>
+          <h1 id="sy-h" tabIndex={-1}>What do you notice?</h1>
         </section>
-        <section className="panel stack right">
-          <h2>Tap where you feel it</h2>
-          <div className="body3d-wrap">
-            <Body3D selected={sel} flagged={[]} onPick={(r) => set({ region: r })} height={420} fallback={<Figure selected={sel} flagged={[]} onPick={(r) => set({ region: r })} />} />
+        <section className="panel q">
+          <fieldset className="choices words">
+            <legend>1. Where</legend>
+            {ORDER.map((r) => <label key={r}><input type="radio" name="region" checked={sel === r} onChange={() => set({ region: r })} />{REGIONS[r].name}</label>)}
+          </fieldset>
+          <fieldset className="choices words">
+            <legend className="sub">Side, optional</legend>
+            {SIDES.map((v) => <label key={v}><input type="radio" name="side" checked={d.side === v} onChange={() => set({ side: v })} />{v}</label>)}
+          </fieldset>
+        </section>
+        <section className="panel q">
+          <fieldset className="choices words">
+            <legend>2. What · up to 5</legend>
+            {SYMPTOMS.map((s) => <label key={s}><input type="checkbox" checked={d.list.includes(s)} onChange={() => toggle(s)} />{s}</label>)}
+          </fieldset>
+        </section>
+        <section className="panel q">
+          <div className="field">
+            <label htmlFor="stemp" className="label">3. Temperature, optional</label>
+            <div className="in"><input id="stemp" inputMode="decimal" autoComplete="off" value={d.temp} onChange={(e) => set({ temp: e.target.value })} aria-label="Temperature in degrees Celsius, optional" /><span>°C</span></div>
           </div>
         </section>
       </div>
-    </>
+      <aside className="side">
+        <section className="panel stack-sm sticky">
+          <h2 className="rail-h">Tap where you feel it</h2>
+          <div className="locator"><Figure selected={sel} flagged={[]} onPick={(r) => set({ region: r })} /></div>
+          <p className="err" role="alert">{err}</p>
+          <Btn type="submit" variant="primary" disabled={!ready}>Save report</Btn>
+          <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
+          <p className="sm muted">Saved on this tablet only. To have it reviewed, use Mark for medical review.</p>
+        </section>
+      </aside>
+      <div className="formfoot"><Foot /></div>
+    </form>
   );
 }
 
@@ -173,22 +182,36 @@ export function FlagView() {
   sessions.filter((s) => s.valid && sameDay(s.at, now)).forEach((s) => items.push(`Alertness check result from ${clock(s.at)}`));
   symptoms.filter((s) => sameDay(s.at, now)).forEach((s) => items.push(`Symptom report from ${clock(s.at)}`));
   actions.filter((a) => sameDay(a.at, now)).forEach((a) => items.push(`Recorded action from ${clock(a.at)}`));
+  const n = items.length;
   return (
     <>
-      <Back to={{ view: 'today' }} label="Today" />
-      <section className="panel stack">
-        <h3>Share</h3>
-        <h1 tabIndex={-1}>Flag for crew medical officer</h1>
-        <dl className="kv">
-          <dt>Intended recipient</dt><dd>Crew medical officer on board. The flight surgeon on the ground would see it at the next downlink.</dd>
-          <dt>What is shared</dt><dd>{items.length ? items.map((t) => <div key={t}>{t}</div>) : 'Nothing recorded yet today. The flag would carry no records.'}</dd>
-          <dt>Ground link</dt><dd>{link ? 'Available.' : 'None right now.'} Onboard help does not depend on it: tell the crew medical officer directly.</dd>
-          <dt>Reply time</dt><dd>Not immediate. A ground reply can take seconds near the Moon and up to about 20 minutes each way at Mars, so the steps on this tablet stand on their own.</dd>
-        </dl>
-        <p className="notice warn"><b>No notification will be sent.</b> This prototype only saves the flag on this tablet, with the records listed above.</p>
-        <div className="row"><Btn variant="primary" onClick={() => { app.sendFlag(); go({ view: 'today' }); }}>Save flag locally</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn></div>
-        <p className="cap"><FlagLine /></p>
-      </section>
+      <div className="today">
+        <div className="main-col">
+          <section className="decision task" aria-labelledby="fl-h">
+            <p className="mark lg task"><b>Medical review</b><span className="scope">local only</span></p>
+            <h1 id="fl-h" tabIndex={-1}>Mark these records for medical review</h1>
+            <p className="reason">{n ? `${n} record${n === 1 ? '' : 's'} from today.` : 'Nothing recorded yet today; the flag would carry no records.'}</p>
+            <p className="notice warn"><b>No notification will be sent.</b> This prototype only saves the flag on this tablet.</p>
+            <div className="row actions"><Btn variant="primary" onClick={() => { app.sendFlag(); go({ view: 'today' }); }}>Save flag locally</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn></div>
+          </section>
+          <section className="panel stack-sm">
+            <h2>Records included</h2>
+            {n ? <ul className="rows quiet">{items.map((t) => <li key={t}><span>{t}</span></li>)}</ul> : <p className="sm muted">None.</p>}
+          </section>
+        </div>
+        <aside className="side">
+          <section className="panel stack-sm">
+            <h2 className="rail-h">On board</h2>
+            <p className="sm">Tell the crew medical officer directly. Onboard help does not depend on the ground link.</p>
+          </section>
+          <section className="panel stack-sm">
+            <h2 className="rail-h">Ground · intended workflow</h2>
+            <p className="sm">The flight surgeon would see a flag at the next downlink. Ground link now: {link ? 'available' : 'none'}. A reply can take seconds near the Moon and up to about 20 minutes each way at Mars.</p>
+            <p className="sm muted">Not built in this prototype.</p>
+          </section>
+        </aside>
+      </div>
+      <Foot />
     </>
   );
 }

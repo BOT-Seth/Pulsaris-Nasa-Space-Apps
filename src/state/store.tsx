@@ -10,7 +10,7 @@ import type { ActionRecord, IssueId, LogEntry, MissionMin, PvtSession, Reading, 
 const KEY = 'pulsaris.v1';
 
 export interface Draft { mood: number | null; kss: number | null; sleep: 'yes' | 'no' | null }
-export interface SymptomDraft { region: RegionId | null; list: string[]; temp: string }
+export interface SymptomDraft { region: RegionId | null; side?: string; list: string[]; temp: string }
 
 interface Persisted {
   scenarioId: string;
@@ -158,10 +158,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const temp: Reading[] = tempC === undefined ? [] : [{ id: uid(), indicator: 'temperature', value: tempC, unit: '°C', at, provenance: 'self-reported', source: 'Typed in with a symptom report' }];
       return {
         ...s,
-        symptoms: [...s.symptoms, { id: uid(), at, region: d.region, list: d.list, tempC }],
+        symptoms: [...s.symptoms, { id: uid(), at, region: d.region, side: d.side, list: d.list, tempC }],
         userReadings: [...s.userReadings, ...temp],
         symptomDraft: { region: null, list: [], temp: '' },
-        log: withLog(s, `Symptom reported: ${d.list.join(', ')}${tempC === undefined ? '' : `, ${tempC.toFixed(1)} °C`}. Not shared.`),
+        log: withLog(s, `Symptom reported: ${d.list.join(', ')}${d.side && d.side !== 'Not sure' ? ` (${d.side.toLowerCase()})` : ''}${tempC === undefined ? '' : `, ${tempC.toFixed(1)} °C`}. Not shared.`),
       };
     }),
     sendFlag: () => setP((s) => {

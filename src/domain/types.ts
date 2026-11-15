@@ -94,6 +94,7 @@ export interface Symptom {
   id: string;
   at: MissionMin;
   region: RegionId;
+  side?: string;
   list: string[];
   tempC?: number;
 }

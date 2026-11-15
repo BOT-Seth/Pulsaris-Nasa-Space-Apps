@@ -6,7 +6,7 @@ import type { IndicatorId } from './domain/types';
 import { AppProvider, useApp } from './state/store';
 import { Btn, Mark } from './ui/primitives';
 import { NavCtx, type Route } from './ui/shared';
-import { Check, Result } from './views/Alertness';
+import { Check, Result, useRunSaver } from './views/Alertness';
 import { BodyMap, FlagView, SymptomForm } from './views/Body';
 import { CheckIn } from './views/CheckIn';
 import { LogView, SourcesView } from './views/LogSources';
@@ -53,6 +53,20 @@ function View({ route }: { route: Route }) {
     case 'log': return <LogView />;
     case 'sources': return <SourcesView />;
   }
+}
+
+/** Demo-only shortcut: loads a simulated alertness result without running the 3-minute test. */
+function DemoSamples() {
+  const { sample } = useRunSaver();
+  return (
+    <div className="row">
+      <span className="sm">Sample alertness result</span>
+      <Btn small onClick={() => sample('watch')}>Watch</Btn>
+      <Btn small onClick={() => sample('act')}>Act</Btn>
+      <Btn small onClick={() => sample('ok')}>Within range</Btn>
+      <span className="sm muted">Stored and labeled as simulated.</span>
+    </div>
+  );
 }
 
 function Shell() {
@@ -110,6 +124,7 @@ function Shell() {
               </label>
               <span className="sm muted">{app.scenario.def.blurb}</span>
             </div>
+            <DemoSamples />
             <div className="row">
               <Btn small onClick={() => app.jump(15)}>Clock +15 min</Btn>
               <Btn small onClick={() => app.jump(60)}>Clock +1 h</Btn>

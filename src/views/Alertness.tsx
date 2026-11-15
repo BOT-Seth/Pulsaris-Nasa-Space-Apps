@@ -11,7 +11,7 @@ import type { Protocol, PvtSession } from '../domain/types';
 import { useApp } from '../state/store';
 import { Btn, Icon, Prov } from '../ui/primitives';
 import { Mark } from './Today';
-import { Back, Foot, RecheckControls, useNav } from '../ui/shared';
+import { Foot, useNav } from '../ui/shared';
 
 const PAUSE_LIMIT_MS = 120000;
 
@@ -29,6 +29,7 @@ function PvtTest({ protocol, onDone }: { protocol: Protocol; onDone: (run: RawRu
   const [phase, setPhase] = useState<Phase>('waiting');
   const [shown, setShown] = useState('');
   const [left, setLeft] = useState(DURATION_MS[protocol]);
+  const [count, setCount] = useState(0);
   const msRef = useRef<HTMLSpanElement>(null);
   const st = useRef({ start: 0, onset: 0, rts: [] as number[], falseStarts: 0, timer: 0, raf: 0, pausedAt: 0, phase: 'waiting' as Phase, done: false });
 
@@ -44,7 +45,7 @@ function PvtTest({ protocol, onDone }: { protocol: Protocol; onDone: (run: RawRu
 
   const nextGap = useCallback(() => {
     const s = st.current;
-    if (performance.now() - s.start >= DURATION_MS[protocol]) { finish(false); return; }
+    if (s.start >= 0 && performance.now() - s.start >= DURATION_MS[protocol]) { finish(false); return; }
     set('waiting');
     // Gap before each signal: uniform 1-4 s, so it cannot be predicted (Basner et al. 2011).
     s.timer = window.setTimeout(() => {
@@ -75,6 +76,9 @@ function PvtTest({ protocol, onDone }: { protocol: Protocol; onDone: (run: RawRu
 
   const feedback = () => {
     const s = st.current;
+    setCount(s.rts.length);
+    // The timed test begins once the practice responses are done.
+    if (s.start < 0 && s.rts.length >= WARMUP_TRIALS) s.start = performance.now();
     set('feedback');
     s.timer = window.setTimeout(nextGap, 1000);
   };
@@ -99,11 +103,16 @@ function PvtTest({ protocol, onDone }: { protocol: Protocol; onDone: (run: RawRu
   }, [finish, nextGap]);
 
   useEffect(() => {
+    document.body.classList.add('testing');
+    return () => document.body.classList.remove('testing');
+  }, []);
+
+  useEffect(() => {
     const s = st.current;
-    s.start = performance.now();
+    s.start = -1;
     if (document.hidden) { s.pausedAt = performance.now(); set('paused'); } else nextGap();
     const tick = window.setInterval(() => {
-      if (st.current.phase !== 'paused') setLeft(Math.max(0, DURATION_MS[protocol] - (performance.now() - s.start)));
+      if (st.current.phase !== 'paused') setLeft(s.start < 0 ? DURATION_MS[protocol] : Math.max(0, DURATION_MS[protocol] - (performance.now() - s.start)));
     }, 500);
     const key = (e: KeyboardEvent) => { if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (!e.repeat) respond(e.timeStamp); } };
     const vis = () => {
@@ -123,62 +132,61 @@ function PvtTest({ protocol, onDone }: { protocol: Protocol; onDone: (run: RawRu
     const s = st.current;
     const away = performance.now() - s.pausedAt;
     if (away > PAUSE_LIMIT_MS) { finish(true); return; }
-    s.start += away; // paused time does not count toward the test
+    if (s.start >= 0) s.start += away; // paused time does not count toward the test
     nextGap();
   };
 
   const sec = Math.ceil(left / 1000);
+  const practice = count < WARMUP_TRIALS;
   return (
-    <div className="pvt" onPointerDown={(e) => { if (!(e.target as HTMLElement).closest('button')) respond(e.timeStamp); }} aria-label="Alertness test. Tap anywhere, or press Space, when the signal appears.">
-      <div className="left cap"><span className="num">{Math.floor(sec / 60)}:{String(sec % 60).padStart(2, '0')}</span> left</div>
-      {phase === 'paused' ? (
-        <div className="stack" style={{ justifyItems: 'center' }}>
-          <p className="big">Paused</p>
-          <p className="sm muted">The test stopped because the screen was hidden. Resume within 2 minutes, or it is not scored.</p>
-          <div className="row"><Btn variant="primary" onClick={resume}>Resume</Btn><Btn onClick={() => finish(true)}>Stop. Not scored</Btn></div>
-        </div>
-      ) : (
-        <div className={`ring${phase === 'stimulus' ? ' on' : ''}`} aria-live="off">
-          {phase === 'stimulus' && <span className="ms" ref={msRef}>0</span>}
-          {phase === 'feedback' && <span className="ms" style={{ fontSize: 34 }}>{shown}</span>}
-          {phase === 'early' && <span className="big">Too early</span>}
-          {phase === 'waiting' && <span className="muted">Wait for the signal</span>}
-        </div>
-      )}
-      {phase !== 'paused' && (
-        <div className="hint row" style={{ justifyContent: 'center' }}>
-          <span className="sm muted">Tap anywhere, or press Space</span>
-          <Btn small onClick={() => finish(true)}>Stop. Not scored</Btn>
-        </div>
-      )}
+    <div className="testmode">
+      <div className="testbar">
+        <span className="phase">{phase === 'paused' ? 'Paused' : practice ? `Practice · ${Math.min(count + 1, WARMUP_TRIALS)} of ${WARMUP_TRIALS}` : 'Timed test'}</span>
+        <span className="num">{practice ? 'Timed test starts after practice' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')} left`}</span>
+      </div>
+      <div className="pvt" onPointerDown={(e) => { if (phase !== 'paused') respond(e.timeStamp); }} aria-label="Response area. Tap here, or press Space, when the signal appears.">
+        {phase === 'paused' ? (
+          <div className="stack" style={{ justifyItems: 'center' }} onPointerDown={(e) => e.stopPropagation()}>
+            <p className="big">Paused</p>
+            <p className="sm muted">The screen was hidden. Resume within 2 minutes, or this attempt is not scored.</p>
+            <div className="row"><Btn variant="primary" onClick={resume}>Resume</Btn></div>
+          </div>
+        ) : (
+          <div className={`ring${phase === 'stimulus' ? ' on' : ''}`} aria-live="off">
+            {phase === 'stimulus' && <span className="ms" ref={msRef}>0</span>}
+            {phase === 'feedback' && <span className="ms" style={{ fontSize: 34 }}>{shown}</span>}
+            {phase === 'early' && <span className="big">Too early</span>}
+            {phase === 'waiting' && <span className="muted">Wait for the signal</span>}
+          </div>
+        )}
+        <p className="hint sm muted">Tap this area, or press Space</p>
+      </div>
+      <div className="teststrip"><Btn onClick={() => finish(true)}>End test · no score</Btn></div>
     </div>
   );
 }
 
 /* ---------- Instructions, test, hand-off to the result ---------- */
 
-export function Check() {
+/** Saves a run as a session and opens its result. Shared by the test and the demo drawer. */
+export function useRunSaver() {
   const app = useApp();
   const { go } = useNav();
-  const [running, setRunning] = useState(false);
   const against = useComparison();
-  const { readings, now, ev, shortTest, recheckAt } = app;
+  const { readings, now, ev, recheckAt } = app;
   const kss = latest(readings, 'sleepiness');
-  const kssToday = kss && sameDay(kss.at, now) && now - kss.at < 120 ? kss : null;
   const sleep = latest(readings, 'sleep');
-  const protocol: Protocol = shortTest ? 'demo-short' : 'pvt-b-3min';
   const trigger: PvtSession['trigger'] = recheckAt !== null || ev.issues.some((i) => i.id === 'alertness-followup') ? 're-check'
     : ev.issues.some((i) => i.id === 'alertness-check') ? 'recommended' : 'pre-task';
   const rested = !!kss && sameDay(kss.at, now) && kss.value <= 4 && !!sleep && sameDay(sleep.at, now) && sleep.value >= 420;
-
   const save = (run: RawRun, provenance: PvtSession['provenance'], proto: Protocol) => {
     const scored = scoreRun(run, against);
     const id = app.addSession({ ...scored, protocol: proto, trigger, provenance, rested });
     go({ view: 'result', id });
   };
-  // Sample outcomes for demos and video. Stored as synthetic, never as a measurement.
+  // Sample outcomes for demos and video. Stored as simulated, never as a measurement.
   const SAMPLES = {
-    // 21 responses near 210 ms plus 4 lapses: about 1.2 SD slower than the reference. Band: Watch.
+    // 21 responses near 210 ms plus 4 lapses: about 1.3 SD slower than the reference. Band: Watch.
     watch: { rts: [212, 205, 218, 209, 214, 361, 207, 216, 211, 204, 358, 213, 208, 219, 206, 364, 215, 210, 203, 217, 357, 209, 212, 206, 214], fs: 1 },
     // Clearly slowed, 7 lapses. Band: Act.
     act: { rts: [246, 262, 239, 371, 255, 248, 402, 259, 244, 366, 251, 268, 243, 389, 257, 249, 372, 261, 245, 254, 418, 247, 258, 363, 252], fs: 2 },
@@ -189,181 +197,251 @@ export function Check() {
     app.jump(3);
     save({ rts: [240, 230, 235, ...SAMPLES[kind].rts], falseStarts: SAMPLES[kind].fs, interrupted: false }, 'synthetic', 'pvt-b-3min');
   };
+  return { save, sample, against };
+}
+
+export function Check() {
+  const app = useApp();
+  const { go } = useNav();
+  const [running, setRunning] = useState(false);
+  const { save, against } = useRunSaver();
+  const { readings, now, shortTest } = app;
+  const kss = latest(readings, 'sleepiness');
+  const kssToday = kss && sameDay(kss.at, now) && now - kss.at < 120 ? kss : null;
+  const protocol: Protocol = shortTest ? 'demo-short' : 'pvt-b-3min';
 
   if (running) return <PvtTest protocol={protocol} onDone={(run) => save(run, 'measured-here', protocol)} />;
   return (
     <>
-      <Back to={{ view: 'today' }} label="Today. The check stays pending" />
-      <section className="panel stack">
-        <h3>Alertness check · {shortTest ? '45 seconds, demo length' : '3 minutes'}</h3>
-        <h1 tabIndex={-1}>Before you start</h1>
-        <ol className="steps"><li>1 Sleepiness</li><li aria-current="step">2 Instructions</li><li>3 Test</li><li>4 Result</li></ol>
-        <p className="sm muted">{kssToday ? `Sleepiness already logged at ${clock(kssToday.at)} (${kssToday.value} of 9). Not asked again within 2 h.` : 'Sleepiness not logged in the last 2 h. Add it in the daily check-in for context; the test decides the result.'}</p>
-        <p>A signal appears at random moments. Tap anywhere, or press Space, as soon as you see it.</p>
-        <p>The first {WARMUP_TRIALS} taps are practice. A response of {LAPSE_MS} ms or slower counts as a lapse. If you are interrupted for more than 2 minutes, the session is not scored.</p>
-        {shortTest && <p className="notice warn">Demo length is on. A 45-second run is not the validated 3-minute test. Its result is labeled and is indicative only.</p>}
-        <div className="row"><Btn variant="primary" onClick={() => setRunning(true)}>Start test</Btn></div>
-        <p className="state">Compared with {against.kind === 'nasa-reference' ? 'the NASA ISS pre-flight reference (24 astronauts). Your own baseline needs 3 rested sessions.' : 'your own baseline of rested sessions.'}</p>
-      </section>
-      <section className="panel">
-        <div className="demo">
-          <div className="cap" style={{ letterSpacing: '0.08em' }}>DEMO · SKIP THE TEST WITH A SAMPLE OUTCOME</div>
-          <p className="sm">Loads a synthetic session, stored and labeled as synthetic. The clock jumps 3 minutes.</p>
-          <div className="row"><Btn small onClick={() => sample('watch')}>Load slower sample</Btn><Btn small onClick={() => sample('act')}>Load much slower sample</Btn><Btn small onClick={() => sample('ok')}>Load normal sample</Btn></div>
-        </div>
-      </section>
-    </>
-  );
-}
-
-/* ---------- Result: plain-language result, the step, then the evidence ---------- */
-
-/** Compact comparison plot: the reading against the reference band and the band rule cut-offs. */
-function ComparePlot({ s }: { s: PvtSession }) {
-  const ref = s.comparedWith === 'nasa-reference';
-  const mean = s.speed - s.z * REFERENCE.sd, sd = REFERENCE.sd;
-  const lo = mean - 2.5 * sd, hi = mean + 3 * sd;
-  const W = 520, L = 16, R = 16, Y = 54;
-  const x = (v: number) => L + ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (W - L - R);
-  const over = s.speed > hi, under = s.speed < lo;
-  const tone = s.band === 'act' ? 'var(--act)' : s.band === 'watch' ? 'var(--watch)' : 'var(--ink)';
-  const label = `${Math.abs(s.z).toFixed(1)} SD ${s.z >= 0 ? 'slower' : 'faster'}`;
-  return (
-    <figure className="compare">
-      <svg viewBox={`0 0 ${W} 112`} role="img" aria-label={`Speed score ${s.speed.toFixed(2)}, ${label} than ${ref ? 'the NASA ISS pre-flight reference' : 'your baseline'} of ${mean.toFixed(2)} plus or minus ${sd.toFixed(2)}. Watch from 1 SD slower, Act from 1.5 SD slower.`}>
-        <rect x={x(mean - sd)} y={Y - 14} width={x(mean + sd) - x(mean - sd)} height={28} fill="rgba(20,21,23,0.08)" />
-        <line x1={L} x2={W - R} y1={Y} y2={Y} stroke="var(--rail)" strokeWidth="2" />
-        <line x1={x(mean)} x2={x(mean)} y1={Y - 14} y2={Y + 14} stroke="var(--ink)" strokeWidth="1.5" />
-        <line x1={x(mean + sd)} x2={x(mean + sd)} y1={Y - 20} y2={Y + 20} stroke="var(--watch)" strokeWidth="1.5" strokeDasharray="3 3" />
-        <line x1={x(mean + 1.5 * sd)} x2={x(mean + 1.5 * sd)} y1={Y - 20} y2={Y + 20} stroke="var(--act)" strokeWidth="1.5" strokeDasharray="3 3" />
-        <text x={x(mean)} y={Y + 34} textAnchor="middle">{ref ? 'Reference' : 'Baseline'} {mean.toFixed(2)}</text>
-        <text x={x(mean + sd) - 5} y={Y - 26} textAnchor="end" fill="var(--watch-text)">Watch</text>
-        <text x={x(mean + 1.5 * sd) + 5} y={Y - 26} textAnchor="start" fill="var(--act-text)">Act</text>
-        <text x={L} y={Y + 34}>← faster</text>
-        <text x={W - R} y={Y + 34} textAnchor="end">slower →</text>
-        <circle cx={x(s.speed)} cy={Y} r="8" fill={tone} stroke="var(--bg)" strokeWidth="2.5" />
-        {(over || under) && <path d={over ? `M${W - R - 2} ${Y - 6} l8 6 -8 6z` : `M${L + 2} ${Y - 6} l-8 6 8 6z`} fill={tone} />}
-        <text x={x(s.speed)} y={Y + 56} textAnchor={over ? 'end' : under ? 'start' : 'middle'} className="strong">This check {s.speed.toFixed(2)}{over || under ? ' (off scale)' : ''}</text>
-      </svg>
-      <figcaption className="cap">Speed score = 10 − mean(1/RT). Lower is faster. Band: {ref ? 'NASA ISS astronauts before flight, N = 24 (Dev et al. 2024)' : 'your rested sessions'}, ±1 SD.</figcaption>
-    </figure>
-  );
-}
-
-const STEPS = ['Result', 'Do the step', 'Record it', 'Re-check'];
-
-export function Result({ id }: { id: string }) {
-  const app = useApp();
-  const { go } = useNav();
-  const s = app.sessions.find((x) => x.id === id);
-  if (!s) return <><Back to={{ view: 'today' }} label="Today" /><section className="panel"><h1 tabIndex={-1}>Result not found</h1></section></>;
-  const ref = s.comparedWith === 'nasa-reference';
-  const refText = ref ? 'the NASA ISS pre-flight reference' : 'your own rested baseline';
-  const isOpen = app.ev.sessionToday?.id === s.id && s.band !== 'ok';
-  const acted = app.actions.filter((a) => a.issue === 'alertness-result' && a.at >= s.at).slice(-1)[0];
-  const earlier = app.sessions.filter((x) => x.valid && x.at < s.at && sameDay(x.at, s.at) && x.band !== 'ok').slice(-1)[0];
-  const demo = s.protocol === 'demo-short' ? ' Demo length, 45 s, indicative only.' : '';
-
-  if (!s.valid) {
-    return (
-      <>
-        <Back to={{ view: 'today' }} label="Today" />
-        <section className="decision" aria-labelledby="res-h">
-          <p className="mark lg task">{Icon.none}<b>Not scored</b><span className="scope">Alertness check · {clock(s.at)}</span></p>
-          <h1 id="res-h" tabIndex={-1}>This session was not scored</h1>
-          <p className="reason">{s.invalidReason} No result was recorded, so your alertness is still not assessed.</p>
-          <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'check' })}>Run it again</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Back to Today</Btn></div>
-        </section>
-        <Foot />
-      </>
-    );
-  }
-
-  const cmp = `${Math.abs(s.z).toFixed(1)} SD ${s.z >= 0 ? 'slower' : 'faster'}`;
-  const act = s.band === 'act';
-  const stage = s.band === 'ok' ? 4 : acted ? 3 : 1;
-  const headline = s.band === 'ok' ? 'Alertness within the reference range' : act ? 'Rest now if your schedule allows' : 'Take a short movement break';
-  const stepText = act ? 'Nap 20 to 30 minutes if the schedule allows. Postpone or double-check critical tasks.' : 'A few minutes of movement. Then double-check critical tasks today.';
-  return (
-    <>
-      <Back to={{ view: 'today' }} label="Today" />
-      <div className="today">
+      <div className="today fixed">
         <div className="main-col">
-          <section className={`decision ${s.band}`} aria-labelledby="res-h">
-            <Mark kind={s.band} scope={`Alertness check · ${clock(s.at)}`} large />
-            <h1 id="res-h" tabIndex={-1}>{headline}</h1>
-            <p className="reason">
-              This check was {cmp} than {refText}, with {s.lapses} lapse{s.lapses === 1 ? '' : 's'} in {s.trials} responses.
-              {s.band === 'ok' && earlier ? <> It is new evidence after the <span className="num">{clock(earlier.at)}</span> result, so the alertness concern from that check is closed.</> : null}
-            </p>
-            {s.band === 'ok' && <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'today' })}>Return to Today</Btn></div>}
-            {isOpen && !acted && (
-              <div className="row actions">
-                <Btn variant="primary" onClick={() => app.recordAction('alertness-result', act ? 'Rest taken.' : 'Movement break taken.')}>{act ? 'Record completed rest' : 'Record completed break'}</Btn>
-                {act && !app.flag && <Btn onClick={() => go({ view: 'flag' })}>Flag crew medical officer</Btn>}
-              </div>
-            )}
-            {isOpen && acted && <div className="stack-sm"><p className="sm">Recorded <span className="num">{clock(acted.at)}</span>: {acted.text} The concern stays open until the re-check.</p><RecheckControls /></div>}
-            <p className="limit">{s.band === 'ok' ? 'Covers alertness only. Sleep, sleepiness and other readings are unchanged by this check. ' : 'Do the step first, then record it. Recording does not close the concern. '}A screening result, not a fitness-for-duty decision.{demo}</p>
-          </section>
-
-          <section className="panel stack-sm">
-            <h2>How this check compares</h2>
-            <div className="evid">
-              <ComparePlot s={s} />
-              <dl className="facts">
-                <dt>Lapses</dt><dd><span className="num">{s.lapses}</span> of <span className="num">{s.trials}</span> · {LAPSE_MS} ms or slower</dd>
-                <dt>False starts</dt><dd className="num">{s.falseStarts}</dd>
-                <dt>Median response</dt><dd className="num">{s.medianMs} ms</dd>
-                <dt>Source</dt><dd><Prov p={s.provenance} /></dd>
-              </dl>
+          <section className="decision task" aria-labelledby="chk-h">
+            <p className="mark lg task">{Icon.due}<b>Alertness check</b><span className="scope">{shortTest ? '3 practice + 45 s, demo length' : '3 practice responses + 3 min'}</span></p>
+            <h1 id="chk-h" tabIndex={-1}>Before you start</h1>
+            <ol className="bigsteps">
+                <li><span><b>Three practice responses,</b> then a {shortTest ? '45-second' : '3-minute'} timed test.</span></li>
+                <li><span><b>Tap the response area, or press Space,</b> as soon as the signal appears.</span></li>
+                <li><span><b>If interrupted,</b> end this attempt and restart when ready.</span></li>
+            </ol>
+            <div className="row actions">
+              <Btn variant="primary" onClick={() => setRunning(true)}>Start test</Btn>
+              <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Not now</Btn>
             </div>
+            {shortTest && <p className="limit"><b>Demo length is on.</b> A 45-second run is not the validated 3-minute test; its result is indicative only.</p>}
           </section>
-
-          {s.band !== 'ok' && (
-            <section className="panel stack-sm">
-              <h2>Fatigue steps <span className="sm muted">· draft, not medically reviewed</span></h2>
-              <ol className="steplist">
-                <li>{stepText}</li>
-                <li>Bright light and caffeine only as your flight surgeon’s plan allows, and not close to your next sleep. No plan is loaded in this prototype.</li>
-                <li>Re-check alertness 30 to 60 minutes after the step.</li>
-              </ol>
-              <p className="cap">Based on <a href={SOURCES.sleepRisk.url} target="_blank" rel="noopener noreferrer">{SOURCES.sleepRisk.label}<span className="sr"> (opens in new tab)</span></a>. A general risk page, not a validated procedure.</p>
-            </section>
-          )}
-
-          <section className="panel tight">
+          <section className="band" aria-label="Signal example">
+            <h2 className="rail-h">Signal example</h2>
+            <figure className="signal-demo">
+              <div className="ring on"><span className="ms">214</span></div>
+              <figcaption>When the black signal appears, tap immediately. The number shows elapsed milliseconds.</figcaption>
+            </figure>
+          </section>
+          <section className="panel tight disclosures onerow">
             <details>
-              <summary><h2>Numbers and method</h2><span className="cap">Speed score {s.speed.toFixed(2)} · {cmp}</span></summary>
+              <summary><h2>How this is scored</h2></summary>
               <div className="body">
-                <dl className="kv">
-                  <dt>Speed score</dt><dd><span className="num">{s.speed.toFixed(2)}</span> · 10 − mean(1/RT) · lower is faster</dd>
-                  <dt>Comparison</dt><dd><span className="num">{(s.speed - s.z * REFERENCE.sd).toFixed(2)} ± {REFERENCE.sd.toFixed(2)}</span> · difference ÷ SD = <span className="num">{s.z.toFixed(2)}</span> SD</dd>
-                  <dt>Mean response speed</dt><dd><span className="num">{s.meanRecip.toFixed(2)} per s</span></dd>
-                  <dt>Protocol</dt><dd>{s.protocol === 'pvt-b-3min' ? '3 minutes, 1–4 s random gaps, first 3 trials not scored' : '45 seconds, demo length. Not the validated protocol.'}</dd>
-                  <dt>Band rule</dt><dd>Watch: 1 to 1.5 SD slower, or 3 to 5 lapses. Act: 1.5 SD or more, 6 or more lapses, or 4 or more false starts. Demo rule, not validated.</dd>
-                </dl>
-                <p className="cap">Tablet display and touch latency are not benchmarked, so the comparison is indicative only. Lapse threshold: Basner et al. 2011 (PVT-B).</p>
+                <p>The first {WARMUP_TRIALS} responses are practice and are not scored. A response of {LAPSE_MS} ms or slower counts as a lapse; a tap before the signal is a false start.</p>
+                <p>If the screen is hidden, the test pauses. Resuming more than 2 minutes later ends the attempt without a score. This 2-minute limit is a prototype rule.</p>
+                <p>Your speed is compared with {against.kind === 'nasa-reference' ? 'the NASA ISS pre-flight reference (24 astronauts, Dev et al. 2024). Your own baseline needs 3 rested sessions.' : 'your own rested sessions.'}</p>
+                <p className="sm muted">Watch and Act cut-offs are demo rules, not clinically validated. Tablet display and touch timing are not benchmarked.</p>
               </div>
             </details>
           </section>
         </div>
         <aside className="side">
           <section className="panel stack-sm">
-            <h2>What happens next</h2>
-            <ol className="flow">
-              {STEPS.map((t, i) => <li key={t} className={i < stage ? 'done' : i === stage ? 'now' : ''}><span className="num">{i + 1}</span>{t}</li>)}
-            </ol>
-            <p className="sm muted">{s.band === 'ok' ? 'No step needed from this check.' : acted ? 'Step recorded. Choose or wait for the re-check.' : 'Do the step, then record it here.'}</p>
-          </section>
-          <section className="panel stack-sm">
-            <h2>Symptoms and support</h2>
-            <p className="sm muted">Feeling unwell is worth reporting whatever this result says.</p>
-            <div className="row"><Btn onClick={() => go({ view: 'symptom' })}>Report a symptom</Btn></div>
+            <h2 className="rail-h">Sleepiness</h2>
+            <p className="sm">{kssToday ? <>Logged at <span className="num">{clock(kssToday.at)}</span>: {kssToday.value} of 9. Not asked again within 2 h.</> : 'Not logged in the last 2 hours. The daily check-in records it; the test result does not depend on it.'}</p>
           </section>
         </aside>
       </div>
-      <Foot />
+      <Foot kind="test" />
+    </>
+  );
+}
+
+/* ---------- Result: the suggested step first, then the evidence ---------- */
+
+/** Difference from the study reference, in SD. Positive is slower. Watch and Act lines are demo thresholds. */
+function ComparePlot({ s }: { s: PvtSession }) {
+  const W = 496, L = 20, R = 28, Y = 54;
+  const lo = -1.5, hi = 3.5;
+  const x = (z: number) => L + ((Math.min(hi, Math.max(lo, z)) - lo) / (hi - lo)) * (W - L - R);
+  const over = s.z > hi, under = s.z < lo;
+  const tone = s.band === 'act' ? 'var(--act)' : s.band === 'watch' ? 'var(--watch)' : 'var(--ink)';
+  const zTxt = `${s.z >= 0 ? '+' : '−'}${Math.abs(s.z).toFixed(1)} SD`;
+  return (
+    <figure className="compare">
+      <svg viewBox={`0 0 ${W} 112`} role="img" aria-label={`Result ${zTxt}${over || under ? ', off scale' : ''}. Study reference band plus or minus 1 SD. Demo thresholds: Watch at plus 1 SD, Act at plus 1.5 SD.`}>
+        <text x={W - R} y={14} textAnchor="end" className="strong">Result: {zTxt}{over || under ? ' · off scale' : ''}</text>
+        <rect x={x(-1)} y={Y - 16} width={x(1) - x(-1)} height={32} fill="rgba(20,21,23,0.08)" />
+        <text x={x(-1)} y={Y - 22}>Study reference ±1 SD</text>
+        <line x1={L} x2={W - R} y1={Y} y2={Y} stroke="var(--rail)" strokeWidth="2" />
+        {[-1, 0, 1, 2, 3].map((t) => (
+          <g key={t}>
+            <line x1={x(t)} x2={x(t)} y1={Y + 18} y2={Y + 24} stroke="var(--ink-2)" strokeWidth="1" />
+            <text x={x(t)} y={Y + 40} textAnchor="middle">{t > 0 ? `+${t}` : t < 0 ? `−${-t}` : '0'}</text>
+          </g>
+        ))}
+        <line x1={x(1)} x2={x(1)} y1={Y - 16} y2={Y + 16} stroke="var(--watch)" strokeWidth="2" strokeDasharray="3 3" />
+        <line x1={x(1.5)} x2={x(1.5)} y1={Y - 16} y2={Y + 16} stroke="var(--act)" strokeWidth="2" strokeDasharray="3 3" />
+        <text x={L} y={Y + 58}>← Faster</text>
+        <text x={W - R} y={Y + 58} textAnchor="end">Slower →</text>
+        {over || under
+          ? <path d={over ? `M${W - R - 8} ${Y - 9} l14 9 -14 9z` : `M${L + 8} ${Y - 9} l-14 9 14 9z`} fill={tone} />
+          : <circle cx={x(s.z)} cy={Y} r="7" fill={tone} stroke="var(--bg)" strokeWidth="2" />}
+      </svg>
+      <figcaption className="key">
+        <span><i className="dash watch" />Demo Watch: +1 SD</span>
+        <span><i className="dash act" />Demo Act: +1.5 SD</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+export function Result({ id }: { id: string }) {
+  const app = useApp();
+  const { go } = useNav();
+  const s = app.sessions.find((x) => x.id === id);
+  if (!s) return <section className="panel"><h1 tabIndex={-1}>Result not found</h1></section>;
+  const ref = s.comparedWith === 'nasa-reference';
+  const simulated = s.provenance === 'synthetic';
+  const isOpen = app.ev.sessionToday?.id === s.id && s.band !== 'ok';
+  const acted = app.actions.filter((a) => a.issue === 'alertness-result' && a.at >= s.at).slice(-1)[0];
+  const earlier = app.sessions.filter((x) => x.valid && x.at < s.at && sameDay(x.at, s.at) && x.band !== 'ok').slice(-1)[0];
+  const scopeTxt = `Alertness check · ${clock(s.at)}${simulated ? ' · Simulated result' : ''}`;
+  const { recheckAt, now, flag } = app;
+
+  if (!s.valid) {
+    return (
+      <>
+        <div className="today fixed">
+          <div className="main-col">
+            <section className="decision task" aria-labelledby="res-h">
+              <p className="mark lg task">{Icon.none}<b>Not scored</b><span className="scope">Alertness check · {clock(s.at)}</span></p>
+              <h1 id="res-h" tabIndex={-1}>This attempt was not scored</h1>
+              <p className="reason">{/interrupt/i.test(s.invalidReason ?? '') ? 'The attempt was interrupted.' : s.invalidReason} No score was recorded; alertness remains unassessed.</p>
+              <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'check' })}>Start a new attempt</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Return to Today</Btn></div>
+            </section>
+          </div>
+          <aside className="side" />
+        </div>
+        <Foot kind="test" />
+      </>
+    );
+  }
+
+  const act = s.band === 'act';
+  const cmp = `${Math.abs(s.z).toFixed(1)} SD ${s.z >= 0 ? 'slower' : 'faster'}`;
+  const due = recheckAt !== null && now >= recheckAt;
+  const review = !flag && <span className="review"><Btn onClick={() => go({ view: 'flag' })}>Mark for medical review</Btn><span className="sm muted">Saves a local flag; no notification is sent.</span></span>;
+
+  let hero;
+  if (s.band === 'ok') {
+    hero = (
+      <section className="decision clear" aria-labelledby="res-h">
+        <Mark kind="clear" word="Within reference band" scope={scopeTxt} large />
+        <h1 id="res-h" tabIndex={-1}>Within the reference range</h1>
+        <p className="reason">Within the displayed study mean ±1 SD band, with {s.lapses} lapse{s.lapses === 1 ? '' : 's'} in {s.trials} responses.{earlier ? <> This re-check meets the demo’s closure rule for the <span className="num">{clock(earlier.at)}</span> alertness concern.</> : null}</p>
+        <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'today' })}>Return to Today</Btn></div>
+        <p className="limit">Covers alertness only; sleep, sleepiness and other readings are unchanged. Demo classification · not clinically validated</p>
+      </section>
+    );
+  } else if (isOpen && acted) {
+    hero = (
+      <section className={`decision ${s.band}`} aria-labelledby="res-h">
+        <Mark kind={s.band} scope={scopeTxt} large />
+        <div className="headblock">
+          <h1 id="res-h" tabIndex={-1}>{recheckAt === null ? 'Choose a re-check time' : due ? 'Re-check your alertness now' : `Re-check at ${clock(recheckAt)}`}</h1>
+          {recheckAt !== null && !due && <p className="countdown">In {Math.max(1, Math.ceil(recheckAt - now))} min</p>}
+        </div>
+        <p className="reason">{acted.text.replace(/\.$/, '').replace(/ taken$/i, '').replace(/^./, (c) => c.toUpperCase())} recorded at <span className="num">{clock(acted.at)}</span>. The earlier alertness concern remains open.</p>
+        <div className="row actions">
+          {recheckAt === null
+            ? <><Btn variant="primary" onClick={() => app.setRecheck(30)}>Re-check at {clock(now + 30)}</Btn><Btn onClick={() => app.setRecheck(60)}>At {clock(now + 60)}</Btn></>
+            : due ? <Btn variant="primary" onClick={() => go({ view: 'check' })}>Start re-check</Btn>
+              : <Btn variant="quiet" onClick={() => app.setRecheck(null)}>Change time</Btn>}
+        </div>
+        <p className="limit">Demo rule · not clinically validated</p>
+      </section>
+    );
+  } else {
+    hero = (
+      <section className={`decision ${s.band}`} aria-labelledby="res-h">
+        <Mark kind={s.band} scope={scopeTxt} large />
+        <h1 id="res-h" tabIndex={-1}>{act ? 'Suggested: rest if your schedule allows' : 'Suggested: a short movement break'}</h1>
+        <p className="reason">{simulated ? 'Simulated result' : 'Result'}: {cmp} than {ref ? 'reference' : 'your baseline'} · {s.lapses} lapse{s.lapses === 1 ? '' : 's'} / {s.trials}.</p>
+        <div className="instruction">
+          <p>{act ? 'Nap 20 to 30 minutes if your schedule allows. Postpone or double-check critical tasks.' : 'A few minutes of movement. Then double-check critical tasks.'}</p>
+          <p className="sm muted">Illustrative guidance · not medically reviewed</p>
+        </div>
+        {isOpen && (
+          <div className="row actions">
+            <Btn variant="primary" onClick={() => app.recordAction('alertness-result', act ? 'Rest taken.' : 'Movement break taken.')}>{act ? 'Record completed rest' : 'Record completed break'}</Btn>
+            {act && review}
+          </div>
+        )}
+        <p className="limit">Demo rule · not clinically validated</p>
+      </section>
+    );
+  }
+
+  return (
+    <>
+      <div className="today fixed">
+        <div className="main-col">
+          {hero}
+          <section className="band" aria-labelledby="cmp-h">
+            <h2 id="cmp-h" className="rail-h">Difference from study reference</h2>
+            <div className="evid2">
+              <ComparePlot s={s} />
+              <dl className="facts">
+                <dt>Lapses</dt><dd className="num">{s.lapses} / {s.trials}</dd>
+                <dt>False starts</dt><dd className="num">{s.falseStarts}</dd>
+                <dt>Median response</dt><dd className="num">{s.medianMs} ms</dd>
+                <dt>Source</dt><dd><Prov p={s.provenance} test /></dd>
+              </dl>
+            </div>
+          </section>
+          <section className="panel tight disclosures onerow">
+            <details>
+              <summary><h2>{s.band !== 'ok' ? 'Guidance and method' : 'Method'}</h2></summary>
+              <div className="body">
+                {s.band !== 'ok' && <h3 className="sub-h">About the guidance</h3>}
+                {s.band !== 'ok' && <>
+                  <p>Bright light and caffeine only as your flight surgeon’s plan allows, and not close to your next sleep. No plan is loaded in this prototype.</p>
+                  <p>Re-check alertness 30 to 60 minutes after the step.</p>
+                  <p className="cap">Based on <a href={SOURCES.sleepRisk.url} target="_blank" rel="noopener noreferrer">{SOURCES.sleepRisk.label}<span className="sr"> (opens in new tab)</span></a>. A general risk page, not a validated procedure.</p>
+                </>}
+                <h3 className="sub-h">Scoring method</h3>
+                <dl className="kv">
+                  <dt>Speed score</dt><dd><span className="num">{s.speed.toFixed(2)}</span> · 10 − mean(1/RT), RT in seconds · lower is faster</dd>
+                  <dt>Comparison</dt><dd><span className="num">{(s.speed - s.z * REFERENCE.sd).toFixed(2)} ± {REFERENCE.sd.toFixed(2)}</span> · same transformation as the reference (Dev et al. 2024, Table 1) · difference ÷ SD = <span className="num">{s.z.toFixed(2)}</span> SD</dd>
+                  <dt>Lapse</dt><dd>Response of {LAPSE_MS} ms or slower (Basner et al. 2011, PVT-B)</dd>
+                  <dt>Protocol</dt><dd>{s.protocol === 'pvt-b-3min' ? '3 practice responses, then 3 minutes; 1–4 s random gaps' : '45 seconds, demo length. Not the validated protocol.'}</dd>
+                  <dt>Band rule</dt><dd>Watch: 1 to 1.5 SD slower, or 3 to 5 lapses. Act: 1.5 SD or more, 6 or more lapses, or 4 or more false starts. Demo rule, not validated.</dd>
+                </dl>
+                <p className="cap">Tablet display and touch latency are not benchmarked, so the comparison is indicative only.</p>
+              </div>
+            </details>
+          </section>
+        </div>
+        <aside className="side">
+          <section className="panel stack-sm">
+            <h2 className="rail-h">This concern</h2>
+            <ul className="rows quiet">
+              <li><b>Result</b><span className="sm muted num">{clock(s.at)} · {s.band === 'ok' ? 'within band' : s.band === 'act' ? 'Act' : 'Watch'}</span></li>
+              {s.band !== 'ok' && <li><b>Action recorded</b><span className="sm muted">{acted ? <span className="num">{clock(acted.at)}</span> : 'Not yet'}</span></li>}
+              {s.band !== 'ok' && <li><b>Re-check due</b><span className="sm muted">{recheckAt !== null && isOpen ? <span className="num">{clock(recheckAt)}</span> : 'Not scheduled'}</span></li>}
+            </ul>
+          </section>
+          <section className="panel stack-sm">
+            <h2 className="rail-h">Symptoms</h2>
+            <Btn onClick={() => go({ view: 'symptom' })}>Report a symptom</Btn>
+          </section>
+        </aside>
+      </div>
+      <Foot kind="test" />
     </>
   );
 }

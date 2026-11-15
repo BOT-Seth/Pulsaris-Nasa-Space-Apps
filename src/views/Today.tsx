@@ -5,18 +5,18 @@
 
 import { useState, type ReactNode } from 'react';
 import { INFO, KSS } from '../domain/content';
-import { FEVER_C, INDICATORS, WEEKLY, latest } from '../domain/rules';
+import { FEVER_C, WEEKLY, latest } from '../domain/rules';
 import { age, clock, sameDay } from '../domain/time';
 import type { IndicatorId, Issue } from '../domain/types';
 import { useApp } from '../state/store';
-import { Btn, Chip, Icon, Prov, Value, plain, provLabel } from '../ui/primitives';
-import { FlagLine, Foot, chipWord, useNav } from '../ui/shared';
+import { Btn, Icon, Prov, Value, plain } from '../ui/primitives';
+import { FlagLine, Foot, useNav } from '../ui/shared';
 
 type MarkKind = 'ok' | 'watch' | 'act' | 'task' | 'clear';
 
 /** Status line. Color only for Watch and Act; "No flags" and "Assessment incomplete" stay neutral. */
-export function Mark({ kind, scope, large }: { kind: MarkKind; scope?: string; large?: boolean }) {
-  const word = { ok: 'OK', watch: 'Watch', act: 'Act', task: 'Assessment incomplete', clear: 'No flags' }[kind];
+export function Mark({ kind, scope, large, word: custom }: { kind: MarkKind; scope?: string; large?: boolean; word?: string }) {
+  const word = custom ?? { ok: 'OK', watch: 'Watch', act: 'Act', task: 'Assessment incomplete', clear: 'No flags' }[kind];
   const icon = kind === 'task' ? Icon.due : kind === 'clear' ? Icon.ok : Icon[kind];
   return (
     <p className={`mark ${kind}${large ? ' lg' : ''}`}>
@@ -184,7 +184,7 @@ function useDecision(issue: Issue | undefined): Decision {
 
 /* ---------- Evidence: what each reading says, in words ---------- */
 
-function explain(id: IndicatorId, app: ReturnType<typeof useApp>): string {
+export function explain(id: IndicatorId, app: ReturnType<typeof useApp>): string {
   const s = app.ev.statuses[id];
   const r = s.latest!;
   if (r.quality?.usable === false) return r.quality.note;
@@ -199,7 +199,7 @@ function explain(id: IndicatorId, app: ReturnType<typeof useApp>): string {
   return s.summary;
 }
 
-function Cell({ id }: { id: IndicatorId }) {
+export function Cell({ id, showLast }: { id: IndicatorId; showLast?: boolean }) {
   const app = useApp();
   const { ev, now } = app;
   const { go } = useNav();
@@ -237,6 +237,7 @@ function Cell({ id }: { id: IndicatorId }) {
       <button type="button" className="cell" onClick={() => go({ view: 'indicator', id })}>
         {head}
         <span className="na">{nightly ? 'No overnight recording' : 'Not entered today'}</span>
+        {showLast && r && <span className="cellmeta"><span>Last: <span className="num">{plain(r)}</span> · {age(r.at, now)}</span><Prov p={r.provenance} /></span>}
       </button>
     );
   }
@@ -340,34 +341,5 @@ export function Today() {
       </div>
       <Foot />
     </>
-  );
-}
-
-/** All nine indicators, compact. Used on Measurements, not on Today. */
-export function Tiles() {
-  const { ev, now } = useApp();
-  const { go } = useNav();
-  return (
-    <div className="tiles" aria-label="All indicators">
-      {INDICATORS.map((id) => {
-        const s = ev.statuses[id];
-        const sess = id === 'alertness' ? ev.sessionToday : null;
-        const r = s.latest;
-        const current = r && sameDay(r.at, now);
-        const judged = s.status === 'ok' || s.status === 'watch' || s.status === 'act';
-        return (
-          <button key={id} type="button" className="tile" onClick={() => go({ view: 'indicator', id })}>
-            <span className="tile-head"><span className="label">{INFO[id].short}</span>{judged ? <Chip kind={s.status} /> : <span className="sm muted">{chipWord(id, s) ?? 'Logged'}</span>}</span>
-            {sess ? <span className="val">{Math.abs(sess.z).toFixed(1)} <small>SD {sess.z >= 0 ? 'slower' : 'faster'}</small></span>
-              : current ? <Value r={r} /> : <span className="val muted">—</span>}
-            <span className="cap">
-              {sess ? <>{clock(sess.at)} · <Prov p={sess.provenance} test /></>
-                : current ? <>{clock(r.at)} · <Prov p={r.provenance} /></>
-                  : r ? <>Last: {plain(r)} · {age(r.at, now)} · {provLabel(r.provenance)}</> : 'No reading'}
-            </span>
-          </button>
-        );
-      })}
-    </div>
   );
 }

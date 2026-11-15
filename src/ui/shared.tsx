@@ -32,13 +32,15 @@ export function Back({ to, label }: { to: Route; label: string }) {
   return <div className="backrow"><Btn variant="quiet" onClick={() => go(to)}>‹ {label}</Btn></div>;
 }
 
-export function Foot() {
+export function Foot({ kind }: { kind?: 'test' } = {}) {
   const { scenario } = useApp();
   const { go } = useNav();
   const night = scenario.readings.some((r) => r.provenance === 'recorded');
   return (
     <p className="foot">
-      Prototype · demo scenario “{scenario.def.name}” · {night ? 'last night from an Earth dataset (MMASH)' : 'no overnight recording'} · earlier nights synthetic · not a medical device ·{' '}
+      {kind === 'test'
+        ? <>Prototype · alertness test and simulated examples · not a medical device ·{' '}</>
+        : <>Prototype · demo scenario “{scenario.def.name}” · {night ? 'last night from an Earth dataset (MMASH)' : 'no overnight recording'} · earlier nights synthetic · not a medical device ·{' '}</>}
       <button type="button" className="linkish" onClick={() => go({ view: 'sources' })}>Sources and limits</button>
     </p>
   );
@@ -172,7 +174,7 @@ export function RecheckControls() {
     return (
       <>
         <p className="notice">{due ? 'Re-check is due now' : <>Re-check due at <span className="num">{clock(recheckAt)}</span></>}.</p>
-        <div className="row"><Btn variant={due ? 'primary' : ''} onClick={() => go({ view: 'check' })}>Start re-check</Btn><Btn variant="quiet" onClick={() => setRecheck(null)}>Change time</Btn></div>
+        <div className="row">{due && <Btn variant="primary" onClick={() => go({ view: 'check' })}>Start re-check</Btn>}<Btn variant="quiet" onClick={() => setRecheck(null)}>Change time</Btn></div>
       </>
     );
   }

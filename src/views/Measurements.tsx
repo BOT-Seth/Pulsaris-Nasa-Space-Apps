@@ -4,10 +4,9 @@ import { FEVER_C, GLUCOSE_FASTING_RANGE, INDICATORS, series } from '../domain/ru
 import { age, clock, missionDay, stamp } from '../domain/time';
 import type { Baseline, IndicatorId, Reading, RuleBasis } from '../domain/types';
 import { useApp } from '../state/store';
-import { BaselineTrack, Btn, BuildingTrack, Chip, NightChart, Prov, SleepTrack, TrendChart, Value, plain, type TrendPoint } from '../ui/primitives';
-import { Mark } from './Today';
-import { Back, Foot, chipWord, useNav } from '../ui/shared';
-import { Tiles } from './Today';
+import { Btn, Chip, Icon, NightChart, Prov, TrendChart, Value, plain, type TrendPoint } from '../ui/primitives';
+import { Cell, Mark, explain } from './Today';
+import { Foot, useNav } from '../ui/shared';
 
 const BASIS: Record<RuleBasis, string> = {
   published: 'Published threshold',
@@ -16,13 +15,27 @@ const BASIS: Record<RuleBasis, string> = {
 };
 
 export function Measurements() {
+  const app = useApp();
+  const { ev, now } = app;
+  const current = (id: IndicatorId) => id === 'alertness' ? !!ev.sessionToday : !!ev.statuses[id].latest && missionDay(ev.statuses[id].latest!.at) === missionDay(now);
+  const flagged = INDICATORS.filter((id) => ev.statuses[id].status === 'watch' || ev.statuses[id].status === 'act');
+  const today = INDICATORS.filter((id) => !flagged.includes(id) && current(id));
+  const rest = INDICATORS.filter((id) => !flagged.includes(id) && !current(id));
+  const group = (title: string, note: string, ids: IndicatorId[], past?: boolean) => ids.length > 0 && (
+    <section className="mgroup" aria-label={title}>
+      <h2 className="mgroup-h">{title} <span className="sm muted">· {note}</span></h2>
+      <div className={`grid3${past ? " compact" : ""}`}>{ids.map((id) => <Cell key={id} id={id} showLast={past} />)}</div>
+    </section>
+  );
   return (
     <>
-      <section className="panel stack-sm">
+      <section className="panel pagehead">
         <h1 tabIndex={-1}>Measurements</h1>
-        <p className="sm muted">Each record shows when it was measured and where it came from. Tap one for its trend, its rule and what it means in space.</p>
+        <p className="sm muted">Tap a reading for its trend, its rule and its sources.</p>
       </section>
-      <Tiles />
+      {group('Flagged by demo rule', `${flagged.length} reading${flagged.length === 1 ? '' : 's'}`, flagged)}
+      {group('Today’s readings', 'no rule triggered', today)}
+      {group('Not current or not recorded', 'not used for today', rest, true)}
       <Foot />
     </>
   );
@@ -65,7 +78,8 @@ function Trend({ id, list, baseline }: { id: IndicatorId; list: Reading[]; basel
 }
 
 export function IndicatorDetail({ id }: { id: IndicatorId }) {
-  const { ev, readings, now, scenario, sessions, disputed } = useApp();
+  const app = useApp();
+  const { ev, readings, now, scenario, sessions } = app;
   const { go } = useNav();
   const info = INFO[id];
   const s = ev.statuses[id];
@@ -73,7 +87,7 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
   const r = s.latest;
   const current = !!r && missionDay(r.at) === missionDay(now);
   const sess = id === 'alertness' ? ev.sessionToday : null;
-  const judged = s.status === 'ok' || s.status === 'watch' || s.status === 'act';
+  const judged = s.status === 'watch' || s.status === 'act';
   const isNight = r?.provenance === 'recorded' && scenario.nightSeries.length > 0 && (id === 'hrv' || id === 'heartRate');
   const pts = points(list);
   const noRule = s.rule.startsWith('This prototype') || s.rule.startsWith('No rule');
@@ -83,14 +97,12 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
         : id === 'alertness' ? <Btn variant="primary" onClick={() => go({ view: 'check' })}>Run alertness check</Btn>
           : (id === 'mood' || id === 'sleepiness') && !(r && r.provenance === 'self-reported' && current) ? <Btn variant="primary" onClick={() => go({ view: 'checkin' })}>Start check-in</Btn>
             : null;
-  const scope = judged ? info.name : `${info.name} · ${r && !current ? 'not current' : (chipWord(id, s) ?? 'logged').toLowerCase()}`;
   return (
     <>
-      <Back to={{ view: 'measurements' }} label="Measurements" />
       <div className="today">
         <div className="main-col">
           <section className={`decision detail ${judged ? s.status : ''}`} aria-labelledby="det-h">
-            {judged ? <Mark kind={s.status as 'ok' | 'watch' | 'act'} scope={info.name} large /> : <p className="mark lg task"><b>{scope}</b></p>}
+            {judged ? <Mark kind={s.status as 'watch' | 'act'} scope={info.name} large /> : <p className="mark lg task"><b>{info.name}</b></p>}
             <h1 id="det-h" tabIndex={-1} className="value-h">
               {sess ? <>{Math.abs(sess.z).toFixed(1)} <small>SD {sess.z >= 0 ? 'slower than reference' : 'faster than reference'}</small></>
                 : r && current ? <Value r={r} className="bigval" />
@@ -104,8 +116,9 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
                 {r.quality && !r.quality.usable ? <> · <b>{r.quality.note}</b></> : null}
               </p>
             )}
-            {r && current && id === 'sleep' && <SleepTrack minutes={r.value} off={disputed.includes(r.id)} concern={s.status === 'watch'} />}
-            {r && current && (id === 'hrv' || id === 'heartRate') && (s.baseline ? <BaselineTrack value={r.value} baseline={s.baseline} unit={r.unit} /> : s.baselineNeeded !== undefined ? <BuildingTrack have={7 - s.baselineNeeded} /> : null)}
+            {r && current && s.baseline && <p className="sm muted">{s.baseline.synthetic ? 'Demo range' : 'Your range'}: {Math.round(s.baseline.low)}–{Math.round(s.baseline.high)} {r.unit}{r.indicator === 'hrv' || r.indicator === 'heartRate' ? ` · ${explain(id, app).split('\n')[0]}` : ''}</p>}
+            {r && current && !s.baseline && s.baselineNeeded !== undefined && <p className="sm muted">Demo baseline: {7 - s.baselineNeeded} of 7 nights · no comparison yet</p>}
+            {judged && <p className="limit">{s.basis === 'clinical-reference' ? 'Earth clinical reference · applied as a demo rule' : 'Demo rule · not clinically validated'}</p>}
             {action && <div className="row actions">{action}</div>}
           </section>
 
@@ -142,27 +155,22 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
             </section>
           )}
 
-          <section className="panel tight disclosures">
+          <section className="panel tight disclosures onerow">
             <details>
-              <summary><h2>Why it matters in space</h2></summary>
-              <div className="body"><p>{info.why}</p></div>
-            </details>
-            <details>
-              <summary><h2>How it is measured</h2></summary>
-              <div className="body"><p>{info.how}</p></div>
-            </details>
-            {isNight && (
-              <details>
-                <summary><h2>Across last night</h2><span className="cap">Earth dataset · {scenario.nightSeries.length} five-minute windows</span></summary>
-                <div className="body">
-                  <NightChart series={scenario.nightSeries} pick={id === 'hrv' ? 'rmssd' : 'hr'} unit={id === 'hrv' ? 'ms' : 'bpm'}
-                    summary={`${id === 'hrv' ? 'RMSSD' : 'Heart rate'} in ${scenario.nightSeries.length} five-minute windows through the night. ${id === 'hrv' ? 'The night value is the median window.' : 'The night value is the mean.'}`} />
-                </div>
-              </details>
-            )}
-            <details>
-              <summary><h2>Sources</h2><span className="cap">{info.sources.length} references</span></summary>
+              <summary><h2>Background, sources and readings</h2></summary>
               <div className="body">
+                <h3 className="sub-h">Why it matters in space</h3>
+                <p>{info.why}</p>
+                <h3 className="sub-h">How it is measured</h3>
+                <p>{info.how}</p>
+                {isNight && (
+                  <>
+                    <h3 className="sub-h">Across last night · Earth dataset, {scenario.nightSeries.length} five-minute windows</h3>
+                    <NightChart series={scenario.nightSeries} pick={id === 'hrv' ? 'rmssd' : 'hr'} unit={id === 'hrv' ? 'ms' : 'bpm'}
+                      summary={`${id === 'hrv' ? 'RMSSD' : 'Heart rate'} in ${scenario.nightSeries.length} five-minute windows through the night. ${id === 'hrv' ? 'The night value is the median window.' : 'The night value is the mean.'}`} />
+                  </>
+                )}
+                <h3 className="sub-h">Sources</h3>
                 <ul className="rows">
                   {info.sources.map((k) => (
                     <li key={k}>
@@ -172,21 +180,19 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
                     </li>
                   ))}
                 </ul>
+                {list.length > 0 && (
+                  <>
+                    <h3 className="sub-h">All readings · {list.length} record{list.length === 1 ? '' : 's'}</h3>
+                    <table>
+                      <thead><tr><th>When</th><th>Value</th><th>Origin</th><th>Note</th></tr></thead>
+                      <tbody>{[...list].reverse().map((x) => (
+                        <tr key={x.id}><td className="num">{stamp(x.at)}</td><td className="num">{plain(x)}</td><td><Prov p={x.provenance} /></td><td>{x.quality ? x.quality.note : x.source}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </>
+                )}
               </div>
             </details>
-            {list.length > 0 && (
-              <details>
-                <summary><h2>All readings</h2><span className="cap">{list.length} record{list.length === 1 ? '' : 's'}</span></summary>
-                <div className="body">
-                  <table>
-                    <thead><tr><th>When</th><th>Value</th><th>Origin</th><th>Note</th></tr></thead>
-                    <tbody>{[...list].reverse().map((x) => (
-                      <tr key={x.id}><td className="num">{stamp(x.at)}</td><td className="num">{plain(x)}</td><td><Prov p={x.provenance} /></td><td>{x.quality ? x.quality.note : x.source}</td></tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              </details>
-            )}
           </section>
         </div>
         <aside className="side">
@@ -253,39 +259,57 @@ export function Entry({ kind }: { kind: 'bp' | 'temp' }) {
     go({ view: 'today' });
   };
 
+  const bp = kind === 'bp';
   return (
-    <>
-      <Back to={{ view: 'today' }} label="Today" />
-      <section className="panel stack">
-        <h3>{kind === 'bp' ? 'About 30 seconds' : 'About 10 seconds'}</h3>
-        <h1 tabIndex={-1}>{kind === 'bp' ? 'Blood pressure and blood sugar' : 'Body temperature'}</h1>
-        <form className="stack" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-          {kind === 'bp' ? (
-            <>
-              <p className="sm muted">Sit still for a minute before the cuff reading. Enter either reading, or both.</p>
-              <div className="fields">
-                <Field id="sys" label="Systolic (upper)" unit="mmHg" value={sys} onChange={setSys} />
-                <Field id="dia" label="Diastolic (lower)" unit="mmHg" value={dia} onChange={setDia} />
-                <Field id="glu" label="Blood sugar" unit="mg/dL" value={glu} onChange={setGlu} />
-              </div>
+    <form className="today form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      <div className="main-col">
+        <section className="decision task formhead" aria-labelledby="en-h">
+          <p className="mark lg task">{Icon.due}<b>{bp ? 'Weekly entry' : 'Entry'}</b><span className="scope">{bp ? 'about 30 seconds' : 'about 10 seconds'}</span></p>
+          <h1 id="en-h" tabIndex={-1}>{bp ? 'Blood pressure and blood sugar' : 'Body temperature'}</h1>
+        </section>
+        {bp ? (
+          <>
+            <section className="panel q">
+              <fieldset className="plainset">
+                <legend>Blood pressure</legend>
+                <p className="sm muted">Sit still for a minute before the cuff reading.</p>
+                <div className="fields">
+                  <Field id="sys" label="Systolic (upper)" unit="mmHg" value={sys} onChange={setSys} />
+                  <Field id="dia" label="Diastolic (lower)" unit="mmHg" value={dia} onChange={setDia} />
+                </div>
+              </fieldset>
+            </section>
+            <section className="panel q">
+              <fieldset className="plainset">
+                <legend>Blood sugar</legend>
+                <div className="fields"><Field id="glu" label="Finger-stick reading" unit="mg/dL" value={glu} onChange={setGlu} /></div>
+              </fieldset>
               <fieldset className="choices words">
                 <legend>Fasting? Nothing to eat for 8 hours</legend>
                 {(['yes', 'no', 'unsure'] as const).map((v) => <label key={v}><input type="radio" name="fasting" checked={fasting === v} onChange={() => setFasting(v)} />{v === 'yes' ? 'Yes' : v === 'no' ? 'No' : 'Unsure'}</label>)}
               </fieldset>
-              <p className="sm muted">Needed only for blood sugar. The 65–99 mg/dL range applies to fasting readings only. This prototype does not interpret blood pressure; it is kept for your trend.</p>
-            </>
-          ) : (
-            <>
-              <div className="fields"><Field id="temp" label="Temperature" unit="°C" value={temp} onChange={setTemp} /></div>
-              <p className="sm muted">A reading at or above 38.0 °C asks for one re-check after 30 minutes.</p>
-            </>
-          )}
+            </section>
+          </>
+        ) : (
+          <section className="panel q">
+            <div className="fields"><Field id="temp" label="Temperature" unit="°C" value={temp} onChange={setTemp} /></div>
+          </section>
+        )}
+      </div>
+      <aside className="side">
+        <section className="panel stack-sm sticky">
+          <h2 className="rail-h">{bp ? 'Enter either reading, or both' : 'One reading'}</h2>
           <p className="err" role="alert">{err}</p>
-          <div className="row"><Btn type="submit" variant="primary">Save reading</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn></div>
+          <Btn type="submit" variant="primary">Save reading</Btn>
+          <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn>
+          <p className="sm muted">{bp
+            ? 'The 65–99 mg/dL fasting lab range is applied as a demo rule, to fasting readings only. This prototype does not interpret blood pressure.'
+            : 'At or above this demo’s 38.0 °C threshold, you are asked to re-check after 30 minutes.'}</p>
           <p className="sm muted">Nothing you typed is discarded if a value is rejected.</p>
-        </form>
-      </section>
-    </>
+        </section>
+      </aside>
+      <div className="formfoot"><Foot /></div>
+    </form>
   );
 }
 
