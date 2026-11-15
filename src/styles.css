@@ -556,3 +556,42 @@ table.compact td { vertical-align: middle; }
 table.compact td .btn.quiet.small { min-height: 44px; padding: 0; display: inline-flex; align-items: center; font: 500 14px var(--mono); }
 /* Forms, flag and log pages: footer sits at the same 764px line as the locked pages */
 @container (min-width: 900px) { .today.fill { min-height: 664px; } .today.form { min-height: 720px; grid-template-rows: minmax(0, 1fr) auto; } }
+
+/* ---------- Forms round 2: 56 px controls, readiness line, inline field errors, compact sections ---------- */
+.form .choices label { min-height: 56px; }
+.form .btn { min-height: 56px; }
+.form .btn.quiet { min-height: 44px; justify-self: start; }
+.form .q { gap: 8px; padding: 16px 24px !important; }
+.form .choices legend { margin-bottom: 8px; }
+.form .q .field { width: auto; }
+.form .field .in { width: 200px; }
+.form .field input { font: 500 24px/32px var(--mono); font-variant-numeric: tabular-nums; }
+.form .field .label { font: 500 14px/20px var(--sans); color: var(--ink-2); }
+.form .qlabel { font: var(--t-section); color: var(--ink); }
+.qsub { font: 500 16px/24px var(--sans); color: var(--ink-2); }
+.hint { font: 400 14px/20px var(--sans); color: var(--ink-2); }
+.hint.block { display: block; margin-top: 2px; }
+legend .hint { margin-left: 8px; }
+.form .choices legend.sub2 { font: var(--t-section); }
+.field.bad .in { border: 2px solid #B42318; }
+.ferr { display: flex; gap: 8px; align-items: center; font: 400 14px/20px var(--sans); color: #B42318; max-width: 360px; }
+.ferr span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #B42318; color: #fff; font: 700 12px/1 var(--sans); flex: none; }
+.ready { font: 500 14px/20px var(--sans); color: var(--ink-2); min-height: 20px; }
+.ready.ok { color: var(--ink); }
+.btn.primary:disabled, .btn.primary[disabled] { background: #e3e3df; border-color: #e3e3df; color: var(--ink-2); cursor: not-allowed; }
+.preview-loc { display: grid; gap: 4px; align-content: start; }
+.preview-loc .locator { display: flex; justify-content: center; pointer-events: none; }
+.preview-loc .figure { max-width: 120px; }
+.locator .aura:not(.sel) rect { stroke: none; fill: none; }
+.formfoot .foot { min-height: 56px; display: flex; align-items: center; padding: 0 24px; margin: 0; }
+.side .sticky { background: var(--bg); z-index: 1; }
+.form .side .sticky { top: 100px; }
+legend .hint.block { margin-left: 0; }
+
+/* Plan & log: record in the main column */
+.record .concern { display: grid; grid-template-columns: 200px 1fr; gap: 16px; padding-top: 8px; border-top: var(--line); }
+.record .concern:first-of-type { border-top: 0; }
+.record .concern-h { font: 600 15px/24px var(--sans); }
+.record .seq { border-left: 0; padding-left: 0; }
+.record .seq li { grid-template-columns: 56px 1fr; font: 400 15px/22px var(--sans); }
+.record .seq .num { font: 400 14px/22px var(--mono); }

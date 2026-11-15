@@ -32,7 +32,7 @@ export function Back({ to, label }: { to: Route; label: string }) {
   return <div className="backrow"><Btn variant="quiet" onClick={() => go(to)}>‹ {label}</Btn></div>;
 }
 
-export function Foot({ kind }: { kind?: 'test' } = {}) {
+export function Foot({ kind }: { kind?: 'test' | 'entry' } = {}) {
   const { scenario } = useApp();
   const { go } = useNav();
   const night = scenario.readings.some((r) => r.provenance === 'recorded');
@@ -40,6 +40,8 @@ export function Foot({ kind }: { kind?: 'test' } = {}) {
     <p className="foot">
       {kind === 'test'
         ? <>Prototype · alertness test and simulated examples · not a medical device ·{' '}</>
+        : kind === 'entry'
+        ? <>Prototype · entries stay on this tablet · not a medical device ·{' '}</>
         : <>Prototype · demo scenario “{scenario.def.name}” · {night ? 'last night from an Earth dataset (MMASH)' : 'no overnight recording'} · earlier nights synthetic · not a medical device ·{' '}</>}
       <button type="button" className="linkish" onClick={() => go({ view: 'sources' })}>Sources and limits</button>
     </p>

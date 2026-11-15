@@ -31,7 +31,7 @@ export function CheckIn() {
   const items: [string, string | null][] = [
     ['Mood', draft.mood ? `${draft.mood} · ${MOOD[draft.mood]}` : null],
     ['Sleepiness', draft.kss ? `${draft.kss} · ${KSS[draft.kss]}` : null],
-    ...(night ? [['Last night’s sleep', draft.sleep === 'yes' ? 'Looks right' : draft.sleep === 'no' ? 'Not right' : null] as [string, string | null]] : []),
+    ...(night ? [['Sleep estimate', draft.sleep === 'yes' ? 'Looks right' : draft.sleep === 'no' ? 'Not right' : null] as [string, string | null]] : []),
   ];
   return (
     <form className="today form" onSubmit={(e) => { e.preventDefault(); save(); }}>
@@ -57,7 +57,7 @@ export function CheckIn() {
         {night ? (
           <section className="panel q">
             <fieldset className="choices words">
-              <legend>3. Last night’s sleep: <span className="num">{duration(night.value)}</span>, recorded {night.window ? `${clock(night.window.from)}–${clock(night.window.to)}` : ''}</legend>
+              <legend>3. Sleep estimate: <span className="num">{duration(night.value)}</span><span className="hint block">Recording window: {night.window ? `${clock(night.window.from)}–${clock(night.window.to)}` : 'not available'} · Earth dataset · MMASH</span></legend>
               <label><input type="radio" name="sleep" checked={draft.sleep === 'yes'} onChange={() => setDraft({ ...draft, sleep: 'yes' })} />Looks right</label>
               <label><input type="radio" name="sleep" checked={draft.sleep === 'no'} onChange={() => setDraft({ ...draft, sleep: 'no' })} />Not right</label>
             </fieldset>
@@ -70,9 +70,10 @@ export function CheckIn() {
           <ul className="rows quiet progress">
             {items.map(([q, a]) => <li key={q}><b>{q}</b><span className={`sm ${a ? '' : 'muted'}`}>{a ?? 'Not answered'}</span></li>)}
           </ul>
+          <p className={`ready${ready ? ' ok' : ''}`} aria-live="polite">{ready ? 'All answered. Ready to save.' : `Answer all ${total} questions.`}</p>
           <Btn type="submit" variant="primary" disabled={!ready}>Save check-in</Btn>
           <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
-          <p className="sm muted">Answers are kept as you tap. Nothing is saved to the record until you press Save.</p>
+          <p className="sm muted">Draft kept on this tablet. Save adds it to your record.</p>
         </section>
       </aside>
       <div className="formfoot"><Foot /></div>

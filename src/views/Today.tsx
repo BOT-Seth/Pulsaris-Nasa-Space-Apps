@@ -40,6 +40,7 @@ function Remind({ onPick }: { onPick: (m: number) => void }) {
 
 interface Decision {
   kind: MarkKind;
+  word?: string;
   scope?: string;
   headline: ReactNode;
   countdown?: string;
@@ -71,6 +72,19 @@ function useDecision(issue: Issue | undefined): Decision {
     : <span className="review"><Btn onClick={() => go({ view: 'flag' })}>Mark for medical review</Btn><span className="sm muted">Saves a local flag; no notification is sent.</span></span>;
 
   if (!issue) {
+    // A completed follow-up can close every open issue while demo rules still flag a reading.
+    // Say so; never claim that no rule was triggered.
+    const flagged = (Object.keys(ev.statuses) as IndicatorId[]).filter((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act');
+    if (flagged.length) {
+      const names = flagged.map((i) => INFO[i].name.toLowerCase());
+      const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+      return {
+        kind: 'clear', word: 'No open follow-up', scope: sess ? `Alertness · ${resultWord}` : 'Available readings',
+        headline: sess && sess.band === 'ok' ? 'Alertness re-check is within the reference band' : 'No follow-up is open',
+        reason: <>{list.charAt(0).toUpperCase() + list.slice(1)} {flagged.length === 1 ? 'is' : 'are'} still flagged by demo rules. Nothing further is asked of you now.</>,
+        rule: DEMO_RULE,
+      };
+    }
     return {
       kind: 'clear', scope: 'Available readings',
       headline: 'Nothing needs follow-up from these readings',
@@ -321,7 +335,7 @@ export function Today() {
       <div className="today">
         <div className="main-col">
           <section className={`decision ${d.kind}`} aria-labelledby="decision-h">
-            <Mark kind={d.kind} scope={d.scope} large />
+            <Mark kind={d.kind} scope={d.scope} word={d.word} large />
             <div className="headblock">
               <h1 id="decision-h" tabIndex={-1}>{d.headline}</h1>
               {d.countdown && <p className="countdown">{d.countdown}</p>}

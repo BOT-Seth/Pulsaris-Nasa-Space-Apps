@@ -41,9 +41,9 @@ export function LogView() {
   };
   return (
     <>
-      <section className="panel pagehead">
+      <section className="mhead">
         <h1 tabIndex={-1}>Plan and log</h1>
-        <p className="sm muted">What is coming up, and what has been recorded. Kept on this tablet.</p>
+        <p className="sm muted">What is coming up, and what has been recorded on this tablet.</p>
         {!storageOk && <p className="notice warn">This browser is blocking local storage. Records will be lost when the page closes.</p>}
       </section>
       <div className="today fill">
@@ -61,21 +61,21 @@ export function LogView() {
               ))}
             </ul>
           </section>
-          <section className="panel stack-sm">
-            <h2>Medical review</h2>
-            <p className="sm"><FlagLine /></p>
-          </section>
-        </div>
-        <aside className="side">
-          <section className="panel stack-sm">
-            <h2 className="rail-h">Record, by concern</h2>
+          <section className="panel stack-sm record">
+            <h2>Record, by concern</h2>
             {groups.size === 0 && <p className="sm muted">Nothing recorded yet in this scenario.</p>}
             {[...groups.entries()].map(([k, entries]) => (
               <div key={k} className="concern">
                 <h3 className="concern-h">{k}</h3>
-                <ol className="seq">{entries.map((e, i) => <li key={i}><span className="num">{clock(e.at)}</span><span className="sm">{e.text}</span></li>)}</ol>
+                <ol className="seq">{entries.map((e, i) => <li key={i}><span className="num">{clock(e.at)}</span><span>{e.text}</span></li>)}</ol>
               </div>
             ))}
+          </section>
+        </div>
+        <aside className="side">
+          <section className="panel stack-sm">
+            <h2 className="rail-h">Medical review</h2>
+            <p className="sm"><FlagLine /></p>
           </section>
           <section className="panel stack-sm">
             <h2 className="rail-h">Your data</h2>

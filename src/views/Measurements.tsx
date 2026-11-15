@@ -284,56 +284,80 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
 
 /* ---------- Typed entries ---------- */
 
-function Field({ id, label, unit, value, onChange }: { id: string; label: string; unit: string; value: string; onChange: (v: string) => void }) {
+export function Field({ id, label, unit, value, onChange, error, numeric }: { id: string; label: ReactNode; unit: string; value: string; onChange: (v: string) => void; error?: string; numeric?: boolean }) {
   return (
-    <div className="field">
+    <div className={`field${error ? ' bad' : ''}`}>
       <label htmlFor={id} className="label">{label}</label>
-      <div className="in"><input id={id} inputMode="decimal" autoComplete="off" value={value} onChange={(e) => onChange(e.target.value)} aria-label={`${label} in ${unit}`} /><span>{unit}</span></div>
+      <div className="in"><input id={id} inputMode={numeric ? 'numeric' : 'decimal'} autoComplete="off" value={value} onChange={(e) => onChange(e.target.value)} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined} /><span aria-hidden="true">{unit}</span></div>
+      {error && <p id={`${id}-err`} className="ferr"><span aria-hidden="true">!</span>{error}</p>}
     </div>
   );
 }
-const num = (s: string): number | null => { const t = s.trim().replace(',', '.'); if (t === '') return null; const v = Number(t); return Number.isFinite(v) ? v : NaN; };
+export const num = (s: string): number | null => { const t = s.trim().replace(',', '.'); if (t === '') return null; if (!/^\d+(\.\d+)?$/.test(t)) return NaN; return Number(t); };
+/** Format and plausibility only. A value past a demo threshold is never rejected. */
+export const tempError = (s: string) => { const t = num(s); return t === null ? '' : Number.isNaN(t) ? 'Enter a number in °C.' : t < 30 || t > 45 ? 'Enter a value between 30 and 45 °C.' : ''; };
+
+const ENTRY_KEY = 'pulsaris.entry-draft.v1';
+type EntryDraft = { sys: string; dia: string; glu: string; temp: string; fasting: 'yes' | 'no' | 'unsure' | null };
+const EMPTY: EntryDraft = { sys: '', dia: '', glu: '', temp: '', fasting: null };
+const loadEntry = (): EntryDraft => { try { return { ...EMPTY, ...JSON.parse(localStorage.getItem(ENTRY_KEY) ?? '{}') }; } catch { return EMPTY; } };
+const keepEntry = (d: EntryDraft) => { try { localStorage.setItem(ENTRY_KEY, JSON.stringify(d)); } catch { /* the draft stays in memory */ } };
 
 export function Entry({ kind }: { kind: 'bp' | 'temp' }) {
   const { addReadings } = useApp();
   const { go } = useNav();
-  const [sys, setSys] = useState(''); const [dia, setDia] = useState(''); const [glu, setGlu] = useState(''); const [temp, setTemp] = useState('');
-  const [fasting, setFasting] = useState<'yes' | 'no' | 'unsure' | null>(null);
-  const [err, setErr] = useState('');
+  const [d, setD] = useState<EntryDraft>(loadEntry);
+  const set = (p: Partial<EntryDraft>) => { const n = { ...d, ...p }; setD(n); keepEntry(n); };
+
+  const s = num(d.sys), di = num(d.dia), g = num(d.glu), t = num(d.temp);
+  const sysErr = s === null ? '' : Number.isNaN(s) ? 'Enter a whole number in mmHg.' : s < 60 || s > 250 ? 'Enter a value between 60 and 250 mmHg.' : '';
+  const diaErr = di === null ? '' : Number.isNaN(di) ? 'Enter a whole number in mmHg.' : di < 30 || di > 150 ? 'Enter a value between 30 and 150 mmHg.' : s !== null && !sysErr && di >= s ? 'Diastolic must be lower than systolic.' : '';
+  const gluErr = g === null ? '' : Number.isNaN(g) ? 'Enter a number in mg/dL.' : g < 20 || g > 600 ? 'Enter a value between 20 and 600 mg/dL.' : '';
+  const tErr = tempError(d.temp);
+
+  const bp = kind === 'bp';
+  const bpStarted = s !== null || di !== null, bpDone = s !== null && di !== null && !sysErr && !diaErr;
+  const gluStarted = g !== null, gluDone = g !== null && !gluErr && d.fasting !== null;
+  const fastWord = d.fasting === 'yes' ? 'fasting' : d.fasting === 'no' ? 'not fasting' : 'fasting not known';
+  let need = '', summary = '';
+  if (bp) {
+    if (sysErr || diaErr || gluErr) need = 'Correct the highlighted value.';
+    else if (!bpStarted && !gluStarted) need = 'Enter blood pressure, blood sugar, or both.';
+    else if (bpStarted && !bpDone) need = 'Blood pressure needs both numbers.';
+    else if (gluStarted && d.fasting === null) need = 'Answer the fasting question for blood sugar.';
+    else summary = [bpDone ? `${Math.round(s!)}/${Math.round(di!)} mmHg` : '', gluDone ? `${Math.round(g!)} mg/dL, ${fastWord}` : ''].filter(Boolean).join(' · ');
+  } else {
+    if (tErr) need = 'Correct the highlighted value.';
+    else if (t === null) need = 'Enter a temperature.';
+    else summary = `${t.toFixed(1)} °C`;
+  }
+  const ready = !need;
 
   const submit = () => {
-    if (kind === 'temp') {
-      const t = num(temp);
-      if (t === null || Number.isNaN(t) || t < 30 || t > 45) { setErr('Enter a temperature between 30 and 45 °C.'); return; }
-      addReadings([{ indicator: 'temperature', value: Math.round(t * 10) / 10, unit: '°C' }], `Temperature entered: ${t.toFixed(1)} °C.`);
+    if (!ready) return;
+    if (!bp) {
+      addReadings([{ indicator: 'temperature', value: Math.round(t! * 10) / 10, unit: '°C' }], `Temperature entered: ${t!.toFixed(1)} °C.`);
+      keepEntry({ ...d, temp: '' });
       go({ view: 'today' });
       return;
     }
-    const s = num(sys), d = num(dia), g = num(glu);
     const list: Parameters<typeof addReadings>[0] = [];
     const parts: string[] = [];
-    if (s !== null || d !== null) {
-      if (s === null || d === null || Number.isNaN(s) || Number.isNaN(d) || s < 60 || s > 250 || d < 30 || d > 150 || d >= s) { setErr('Enter both pressures. Systolic 60–250, diastolic 30–150, and systolic must be the higher one.'); return; }
-      list.push({ indicator: 'bloodPressure', value: Math.round(s), value2: Math.round(d), unit: 'mmHg' });
-      parts.push(`blood pressure ${Math.round(s)}/${Math.round(d)} mmHg`);
+    if (bpDone) { list.push({ indicator: 'bloodPressure', value: Math.round(s!), value2: Math.round(di!), unit: 'mmHg' }); parts.push(`blood pressure ${Math.round(s!)}/${Math.round(di!)} mmHg`); }
+    if (gluDone) {
+      list.push({ indicator: 'bloodSugar', value: Math.round(g!), unit: 'mg/dL', quality: d.fasting === 'yes' ? { usable: true, note: 'Fasting reading' } : { usable: false, note: d.fasting === 'no' ? 'Not fasting' : 'Fasting not known' } });
+      parts.push(`blood sugar ${Math.round(g!)} mg/dL, ${fastWord}`);
     }
-    if (g !== null) {
-      if (Number.isNaN(g) || g < 20 || g > 600) { setErr('Enter a blood sugar between 20 and 600 mg/dL.'); return; }
-      if (fasting === null) { setErr('Answer whether this is a fasting reading. The lab range applies to fasting readings only.'); return; }
-      list.push({ indicator: 'bloodSugar', value: Math.round(g), unit: 'mg/dL', quality: fasting === 'yes' ? { usable: true, note: 'Fasting reading' } : { usable: false, note: fasting === 'no' ? 'Not fasting' : 'Fasting not known' } });
-      parts.push(`blood sugar ${Math.round(g)} mg/dL, ${fasting === 'yes' ? 'fasting' : fasting === 'no' ? 'not fasting' : 'fasting not known'}`);
-    }
-    if (!list.length) { setErr('Enter at least one reading.'); return; }
     addReadings(list, `Entered: ${parts.join(', ')}.`);
+    keepEntry({ ...d, sys: '', dia: '', glu: '', fasting: null });
     go({ view: 'today' });
   };
 
-  const bp = kind === 'bp';
   return (
     <form className="today form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
       <div className="main-col">
         <section className="decision task formhead" aria-labelledby="en-h">
-          <p className="mark lg task">{Icon.due}<b>{bp ? 'Weekly entry' : 'Entry'}</b><span className="scope">{bp ? 'about 30 seconds' : 'about 10 seconds'}</span></p>
+          <p className="mark lg task">{Icon.due}<b>{bp ? 'Weekly entry' : 'Entry'}</b><span className="scope">{bp ? 'enter existing readings' : 'enter an existing reading'}</span></p>
           <h1 id="en-h" tabIndex={-1}>{bp ? 'Blood pressure and blood sugar' : 'Body temperature'}</h1>
         </section>
         {bp ? (
@@ -341,43 +365,42 @@ export function Entry({ kind }: { kind: 'bp' | 'temp' }) {
             <section className="panel q">
               <fieldset className="plainset">
                 <legend>Blood pressure</legend>
-                <p className="sm muted">Sit still for a minute before the cuff reading.</p>
+                <p className="hint">Follow your blood-pressure device’s measurement instructions.</p>
                 <div className="fields">
-                  <Field id="sys" label="Systolic (upper)" unit="mmHg" value={sys} onChange={setSys} />
-                  <Field id="dia" label="Diastolic (lower)" unit="mmHg" value={dia} onChange={setDia} />
+                  <Field id="sys" label="Systolic (upper)" unit="mmHg" value={d.sys} onChange={(v) => set({ sys: v })} error={sysErr} numeric />
+                  <Field id="dia" label="Diastolic (lower)" unit="mmHg" value={d.dia} onChange={(v) => set({ dia: v })} error={diaErr} numeric />
                 </div>
               </fieldset>
             </section>
             <section className="panel q">
               <fieldset className="plainset">
                 <legend>Blood sugar</legend>
-                <div className="fields"><Field id="glu" label="Finger-stick reading" unit="mg/dL" value={glu} onChange={setGlu} /></div>
+                <div className="fields"><Field id="glu" label="Finger-stick reading" unit="mg/dL" value={d.glu} onChange={(v) => set({ glu: v })} error={gluErr} /></div>
               </fieldset>
               <fieldset className="choices words">
-                <legend>Fasting? Nothing to eat for 8 hours</legend>
-                {(['yes', 'no', 'unsure'] as const).map((v) => <label key={v}><input type="radio" name="fasting" checked={fasting === v} onChange={() => setFasting(v)} />{v === 'yes' ? 'Yes' : v === 'no' ? 'No' : 'Unsure'}</label>)}
+                <legend className="sub2">No food or calorie-containing drinks for at least 8 hours? <span className="hint">Fasting context required for blood sugar</span></legend>
+                {(['yes', 'no', 'unsure'] as const).map((v) => <label key={v}><input type="radio" name="fasting" checked={d.fasting === v} onChange={() => set({ fasting: v })} />{v === 'yes' ? 'Yes' : v === 'no' ? 'No' : 'Unsure'}</label>)}
               </fieldset>
             </section>
           </>
         ) : (
           <section className="panel q">
-            <div className="fields"><Field id="temp" label="Temperature" unit="°C" value={temp} onChange={setTemp} /></div>
+            <div className="fields"><Field id="temp" label="Temperature" unit="°C" value={d.temp} onChange={(v) => set({ temp: v })} error={tErr} /></div>
           </section>
         )}
       </div>
       <aside className="side">
         <section className="panel stack-sm sticky">
-          <h2 className="rail-h">{bp ? 'Enter either reading, or both' : 'One reading'}</h2>
-          <p className="err" role="alert">{err}</p>
-          <Btn type="submit" variant="primary">Save reading</Btn>
-          <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn>
+          <p className={`ready${ready ? ' ok' : ''}`} aria-live="polite">{ready ? summary : need}</p>
+          <Btn type="submit" variant="primary" disabled={!ready}>Save reading</Btn>
+          <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
+          <p className="sm muted">Draft kept on this tablet. Save adds it to your record.</p>
           <p className="sm muted">{bp
-            ? 'The 65–99 mg/dL fasting lab range is applied as a demo rule, to fasting readings only. This prototype does not interpret blood pressure.'
-            : 'At or above this demo’s 38.0 °C threshold, you are asked to re-check after 30 minutes.'}</p>
-          <p className="sm muted">Nothing you typed is discarded if a value is rejected.</p>
+            ? 'Demo glucose rule · not clinically validated for finger-stick readings. The 65–99 mg/dL demonstration interval is used only when fasting is answered Yes. Blood pressure is not interpreted.'
+            : 'At or above this demo’s 38.0 °C threshold, a re-check is scheduled 30 minutes later.'}</p>
         </section>
       </aside>
-      <div className="formfoot"><Foot /></div>
+      <div className="formfoot"><Foot kind="entry" /></div>
     </form>
   );
 }

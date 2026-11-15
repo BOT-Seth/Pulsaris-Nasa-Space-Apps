@@ -140,7 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const at = nowOf(s);
         const full: PvtSession = { ...sess, id, at };
         const text = full.valid
-          ? `Alertness check completed: ${full.z.toFixed(1)} SD vs ${full.comparedWith === 'nasa-reference' ? 'reference' : 'own baseline'}, ${full.lapses} lapse${full.lapses === 1 ? '' : 's'}, ${full.falseStarts} false start${full.falseStarts === 1 ? '' : 's'}. Band: ${full.band === 'ok' ? 'OK' : full.band === 'watch' ? 'Watch' : 'Act'}.${full.protocol === 'demo-short' ? ' Demo length, 45 s.' : ''}`
+          ? `Alertness check completed: ${full.z >= 0 ? '+' : '−'}${Math.abs(full.z).toFixed(1)} SD vs ${full.comparedWith === 'nasa-reference' ? 'study reference' : 'own baseline'}, ${full.lapses} lapse${full.lapses === 1 ? '' : 's'}, ${full.falseStarts} false start${full.falseStarts === 1 ? '' : 's'} · ${full.band === 'ok' ? 'Within band' : full.band === 'watch' ? 'Watch' : 'Act'}.${full.protocol === 'demo-short' ? ' Demo length, 45 s.' : ''}`
           : `Alertness check not scored: ${full.invalidReason}`;
         return { ...s, sessions: [...s.sessions, full], deferUntil: null, recheckAt: full.valid ? null : s.recheckAt, log: withLog(s, text) };
       });
@@ -150,7 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDefer: (minutes: number | null) => setP((s) => minutes === null ? { ...s, deferUntil: null }
       : { ...s, deferUntil: nowOf(s) + minutes, log: withLog(s, `Alertness check deferred to ${clock(nowOf(s) + minutes)}. Still not assessed.`) }),
     setRecheck: (minutes: number | null) => setP((s) => minutes === null ? { ...s, recheckAt: null }
-      : { ...s, recheckAt: nowOf(s) + minutes, log: withLog(s, `Re-check scheduled for ${clock(nowOf(s) + minutes)}.`) }),
+      : { ...s, recheckAt: nowOf(s) + minutes, log: withLog(s, `Alertness re-check scheduled for ${clock(nowOf(s) + minutes)}.`) }),
     saveSymptom: (tempC?: number) => setP((s) => {
       const d = s.symptomDraft;
       if (!d.region || !d.list.length) return s;
@@ -161,7 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         symptoms: [...s.symptoms, { id: uid(), at, region: d.region, side: d.side, list: d.list, tempC }],
         userReadings: [...s.userReadings, ...temp],
         symptomDraft: { region: null, list: [], temp: '' },
-        log: withLog(s, `Symptom reported: ${d.list.join(', ')}${d.side && d.side !== 'Not sure' ? ` (${d.side.toLowerCase()})` : ''}${tempC === undefined ? '' : `, ${tempC.toFixed(1)} °C`}. Not shared.`),
+        log: withLog(s, `Symptom reported: ${d.list.join(', ')}${d.side && d.side !== 'Not sure' ? ` (${d.side.toLowerCase()})` : ''}${tempC === undefined ? '' : `, ${tempC.toFixed(1)} °C`}. Saved on this tablet only.`),
       };
     }),
     sendFlag: () => setP((s) => {

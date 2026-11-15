@@ -6,6 +6,7 @@ import type { RegionId } from '../domain/types';
 import { useApp } from '../state/store';
 import { Body3D, type BodyLabel } from '../ui/Body3D';
 import { Btn, Chip, Value, plain } from '../ui/primitives';
+import { Field, tempError } from './Measurements';
 import { Foot, chipWord, useNav } from '../ui/shared';
 
 const ORDER: RegionId[] = ['head', 'chest', 'abdomen', 'limbs', 'whole'];
@@ -114,14 +115,15 @@ const SIDES = ['Left', 'Right', 'Both', 'Centre', 'Not sure'] as const;
 export function SymptomForm({ region }: { region?: RegionId }) {
   const { symptomDraft: d, setSymptomDraft, saveSymptom } = useApp();
   const { go } = useNav();
-  const [err, setErr] = useState('');
   const sel = d.region ?? region ?? null;
   const set = (patch: Partial<typeof d>) => setSymptomDraft({ ...d, region: sel, ...patch });
   const toggle = (s: string) => set({ list: d.list.includes(s) ? d.list.filter((x) => x !== s) : d.list.length < 5 ? [...d.list, s] : d.list });
-  const ready = !!(sel && d.list.length);
+  const tErr = tempError(d.temp);
+  const ready = !!(sel && d.list.length) && !tErr;
+  const summary = [sel ? REGIONS[sel].name + (d.side && d.side !== 'Not sure' ? ` (${d.side.toLowerCase()})` : '') : '', d.list.join(', '), d.temp.trim() && !tErr ? `${d.temp.trim().replace(',', '.')} °C` : ''].filter(Boolean).join(' · ');
   const submit = () => {
+    if (!ready) return;
     const t = d.temp.trim().replace(',', '.');
-    if (t !== '' && !(Number(t) >= 30 && Number(t) <= 45)) { setErr('Enter a temperature between 30 and 45 °C, or leave it empty.'); return; }
     if (d.region === null && sel) setSymptomDraft({ ...d, region: sel });
     saveSymptom(t === '' ? undefined : Math.round(Number(t) * 10) / 10);
     go({ view: 'today' });
@@ -135,38 +137,38 @@ export function SymptomForm({ region }: { region?: RegionId }) {
         </section>
         <section className="panel q">
           <fieldset className="choices words">
-            <legend>1. Where</legend>
+            <legend>1. Location <span className="qsub">— choose one</span></legend>
             {ORDER.map((r) => <label key={r}><input type="radio" name="region" checked={sel === r} onChange={() => set({ region: r })} />{REGIONS[r].name}</label>)}
           </fieldset>
           <fieldset className="choices words">
-            <legend className="sub">Side, optional</legend>
+            <legend className="sub">Your side — optional</legend>
             {SIDES.map((v) => <label key={v}><input type="radio" name="side" checked={d.side === v} onChange={() => set({ side: v })} />{v}</label>)}
           </fieldset>
         </section>
         <section className="panel q">
           <fieldset className="choices words">
-            <legend>2. What · up to 5</legend>
+            <legend>2. Symptoms <span className="qsub">— choose up to 5</span></legend>
             {SYMPTOMS.map((s) => <label key={s}><input type="checkbox" checked={d.list.includes(s)} onChange={() => toggle(s)} />{s}</label>)}
           </fieldset>
         </section>
         <section className="panel q">
-          <div className="field">
-            <label htmlFor="stemp" className="qlabel">3. Temperature, optional</label>
-            <div className="in"><input id="stemp" inputMode="decimal" autoComplete="off" value={d.temp} onChange={(e) => set({ temp: e.target.value })} aria-label="Temperature in degrees Celsius, optional" /><span>°C</span></div>
-          </div>
+          <Field id="stemp" label={<span className="qlabel">3. Temperature <span className="qsub">— optional</span></span>} unit="°C" value={d.temp} onChange={(v) => set({ temp: v })} error={tErr} />
         </section>
       </div>
       <aside className="side">
         <section className="panel stack-sm sticky">
-          <h2 className="rail-h">Tap where you feel it</h2>
-          <div className="locator"><Figure selected={sel} flagged={[]} onPick={(r) => set({ region: r })} /></div>
-          <p className="err" role="alert">{err}</p>
+          <p className={`ready${ready ? ' ok' : ''}`} aria-live="polite">{tErr ? 'Correct the highlighted value.' : ready ? summary : 'Choose a location and at least one symptom.'}</p>
           <Btn type="submit" variant="primary" disabled={!ready}>Save report</Btn>
           <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
-          <p className="sm muted">Saved on this tablet only. To have it reviewed, use Mark for medical review.</p>
+          <p className="sm muted">Draft kept on this tablet. Save adds it to your record. Saving does not notify the crew medical officer.</p>
+        </section>
+        <section className="panel preview-loc" aria-hidden="true">
+            <h2 className="rail-h">Location preview</h2>
+            <p className="sm">{sel ? REGIONS[sel].name : 'No location selected'}</p>
+            <div className="locator"><Figure selected={sel} flagged={[]} onPick={() => undefined} /></div>
         </section>
       </aside>
-      <div className="formfoot"><Foot /></div>
+      <div className="formfoot"><Foot kind="entry" /></div>
     </form>
   );
 }
