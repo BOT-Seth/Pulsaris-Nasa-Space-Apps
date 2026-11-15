@@ -58,6 +58,31 @@ function View({ route }: { route: Route }) {
 /** Demo-only shortcut: loads a simulated alertness result without running the 3-minute test. */
 function DemoSamples() {
   const { sample } = useRunSaver();
+  const app = useApp();
+  // Presentation shortcut: a short night, a sleepy check-in, two symptom reports and a slowed
+  // alertness result, so the app shows what it recommends. Every entry is logged as usual.
+  const livedIn = () => {
+    app.setScenario('short');
+    app.setDraft({ mood: 2, kss: 8, sleep: 'yes' });
+    app.saveCheckin();
+    app.jump(20);
+    app.setSymptomDraft({ region: 'abdomen', side: 'Centre', list: ['Nausea'], temp: '' });
+    app.saveSymptom();
+    app.jump(12);
+    app.setSymptomDraft({ region: 'head', list: ['Headache', 'Dizziness'], temp: '37.9' });
+    app.saveSymptom(37.9);
+    app.jump(15);
+    sample('act');
+  };
+  return (
+    <div className="row">
+      <Btn small variant="primary" onClick={livedIn}>Load demo day: nausea, sleepiness, slowed reactions</Btn>
+    </div>
+  );
+}
+
+function DemoSamplesRow() {
+  const { sample } = useRunSaver();
   return (
     <div className="row">
       <span className="sm">Sample alertness result</span>
@@ -154,6 +179,7 @@ function Shell() {
               <span className="sm muted">{app.scenario.def.blurb}</span>
             </div>
             <DemoSamples />
+            <DemoSamplesRow />
             <div className="row">
               <Btn small onClick={() => app.jump(15)}>Clock +15 min</Btn>
               <Btn small onClick={() => app.jump(60)}>Clock +1 h</Btn>
