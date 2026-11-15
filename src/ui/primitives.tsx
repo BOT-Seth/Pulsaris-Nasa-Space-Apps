@@ -148,7 +148,7 @@ export function TrendChart(props: { points: TrendPoint[]; today: number; days?: 
         ))}
         {baseline && <rect className="band" x={L} width={W - L - R} y={y(baseline.high)} height={Math.max(2, y(baseline.low) - y(baseline.high))} />}
         {refLine && <g><line className="ref" x1={L} x2={W - R} y1={y(refLine.v)} y2={y(refLine.v)} /><text x={W - R} y={y(refLine.v) - 6} textAnchor="end">{refLine.label}</text></g>}
-        {kind === 'line' && segs.map((s, i) => s.length > 1 && <polyline key={i} className="line" points={s.map((p) => `${x(p.day)},${y(p.v)}`).join(' ')} />)}
+        {kind === 'line' && segs.flatMap((s) => s.slice(1).map((p, i) => <line key={p.day} className={`line${p.prov === 'synthetic' || s[i].prov === 'synthetic' ? ' syn' : ''}`} x1={x(s[i].day)} y1={y(s[i].v)} x2={x(p.day)} y2={y(p.v)} />))}
         {kind === 'bar' && vis.map((p) => <rect key={p.day} className={`bar ${cls(p)}`} x={x(p.day) - bw / 2} width={bw} y={y(p.v)} height={Math.max(0, y(lo) - y(p.v))} />)}
         {kind === 'range' && vis.map((p) => (
           <g key={p.day}>
@@ -157,7 +157,7 @@ export function TrendChart(props: { points: TrendPoint[]; today: number; days?: 
             <rect className={`pt ${cls(p)}`} x={x(p.day) - 4.5} y={y(p.v2 ?? p.v) - 4.5} width="9" height="9" transform={`rotate(45 ${x(p.day)} ${y(p.v2 ?? p.v)})`} />
           </g>
         ))}
-        {(kind === 'line' || kind === 'dots') && vis.map((p) => <circle key={p.day} className={`pt ${cls(p)}`} cx={x(p.day)} cy={y(p.v)} r={p.day === today ? 6 : 5} />)}
+        {(kind === 'line' || kind === 'dots') && vis.map((p) => <circle key={p.day} className={`pt ${cls(p)}`} cx={x(p.day)} cy={y(p.v)} r={p.day === today ? 8 : 6} />)}
         {Array.from({ length: days }, (_, i) => first + i).filter((d) => d >= 1).map((d) => (
           <text key={d} x={x(d)} y={H - 8} textAnchor="middle">{d === today ? 'Today' : `D${d}`}</text>
         ))}

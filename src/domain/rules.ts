@@ -148,8 +148,8 @@ export function evaluate(input: RuleInput): Evaluation {
   // ---- Blood pressure: recorded, no in-flight rule ----
   const bp = latest(readings, 'bloodPressure');
   S.bloodPressure = !bp
-    ? st('bloodPressure', 'none', 'No reading yet.', 'No in-flight rule. Shown for your own trend.', 'team-starting-point', null)
-    : st('bloodPressure', 'info', fresh(bp) ? 'Logged. No in-flight rule is applied.' : 'Not a current reading.', 'No in-flight rule. Shown for your own trend.', 'team-starting-point', bp);
+    ? st('bloodPressure', 'none', 'No reading yet.', 'This prototype does not interpret blood pressure. Readings are kept for your trend.', 'team-starting-point', null)
+    : st('bloodPressure', 'info', fresh(bp) ? 'Logged. This prototype does not interpret blood pressure.' : 'Not a current reading.', 'This prototype does not interpret blood pressure. Readings are kept for your trend.', 'team-starting-point', bp);
 
   // ---- Blood sugar: fasting lab range, only for a fresh fasting reading ----
   const gluRule = `Fasting reading outside ${GLUCOSE_FASTING_RANGE.low}-${GLUCOSE_FASTING_RANGE.high} mg/dL asks for one re-check before anything else.`;

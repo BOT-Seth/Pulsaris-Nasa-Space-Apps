@@ -4,14 +4,14 @@ import { FEVER_C, GLUCOSE_FASTING_RANGE, INDICATORS, series } from '../domain/ru
 import { age, clock, missionDay, stamp } from '../domain/time';
 import type { Baseline, IndicatorId, Reading, RuleBasis } from '../domain/types';
 import { useApp } from '../state/store';
-import { BaselineTrack, Btn, BuildingTrack, Chip, NightChart, Prov, SleepTrack, SpeedScale, TrendChart, plain, type TrendPoint } from '../ui/primitives';
-import { REFERENCE } from '../domain/pvt';
+import { BaselineTrack, Btn, BuildingTrack, Chip, NightChart, Prov, SleepTrack, TrendChart, Value, plain, type TrendPoint } from '../ui/primitives';
+import { Mark } from './Today';
 import { Back, Foot, chipWord, useNav } from '../ui/shared';
 import { Tiles } from './Today';
 
 const BASIS: Record<RuleBasis, string> = {
   published: 'Published threshold',
-  'team-starting-point': 'Team starting point, not validated',
+  'team-starting-point': 'Demo rule · not validated',
   'clinical-reference': 'Earth clinical reference',
 };
 
@@ -45,10 +45,10 @@ function Trend({ id, list, baseline }: { id: IndicatorId; list: Reading[]; basel
   const common = { points: pts, today };
   switch (id) {
     case 'sleep':
-      return <TrendChart {...common} kind="bar" scale={[0, 480]} fmt={(v) => `${Math.round(v / 60)} h`} refLine={{ v: 384, label: 'crew average 6.4 h' }} summary={`Sleep per night on a 0 to 8 h scale. ${tail}`} />;
+      return <TrendChart {...common} kind="bar" scale={[0, 480]} fmt={(v) => `${Math.round(v / 60)} h`} refLine={{ v: 384, label: 'study crew average 6.4 h · not a target' }} summary={`Sleep per night on a 0 to 8 h scale. ${tail}`} />;
     case 'hrv':
     case 'heartRate':
-      return <TrendChart {...common} kind="line" baseline={baseline} summary={`${INFO[id].name} per night${baseline ? `, with your usual range of ${Math.round(baseline.low)} to ${Math.round(baseline.high)} ${INFO[id].unit}` : ''}. ${tail}`} />;
+      return <TrendChart {...common} kind="line" baseline={baseline} bandLabel={baseline?.synthetic ? 'Demo baseline · synthetic nights' : 'Your 7-night range'} summary={`${INFO[id].name} per night${baseline ? `, against ${baseline.synthetic ? 'a demo baseline built from synthetic nights' : 'your 7-night range'} of ${Math.round(baseline.low)} to ${Math.round(baseline.high)} ${INFO[id].unit}` : ''}. ${tail}`} />;
     case 'mood':
       return <TrendChart {...common} kind="dots" scale={[1, 5]} summary={`Mood per day, 1 to 5. ${tail}`} />;
     case 'sleepiness':
@@ -71,111 +71,137 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
   const s = ev.statuses[id];
   const list = series(readings, id);
   const r = s.latest;
+  const current = !!r && missionDay(r.at) === missionDay(now);
   const sess = id === 'alertness' ? ev.sessionToday : null;
+  const judged = s.status === 'ok' || s.status === 'watch' || s.status === 'act';
   const isNight = r?.provenance === 'recorded' && scenario.nightSeries.length > 0 && (id === 'hrv' || id === 'heartRate');
+  const pts = points(list);
+  const noRule = s.rule.startsWith('This prototype') || s.rule.startsWith('No rule');
+  const action =
+    id === 'bloodPressure' || id === 'bloodSugar' ? <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Log blood pressure and blood sugar</Btn>
+      : id === 'temperature' ? <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'temp' })}>Log temperature</Btn>
+        : id === 'alertness' ? <Btn variant="primary" onClick={() => go({ view: 'check' })}>Run alertness check</Btn>
+          : (id === 'mood' || id === 'sleepiness') && !(r && r.provenance === 'self-reported' && current) ? <Btn variant="primary" onClick={() => go({ view: 'checkin' })}>Start check-in</Btn>
+            : null;
+  const scope = judged ? info.name : `${info.name} · ${r && !current ? 'not current' : (chipWord(id, s) ?? 'logged').toLowerCase()}`;
   return (
     <>
       <Back to={{ view: 'measurements' }} label="Measurements" />
-      <div className="split">
-        <section className={`panel primary ${s.status === 'watch' || s.status === 'act' || s.status === 'ok' ? s.status : ''} stack`}>
-          <h3>{info.name}</h3>
-          <div className="title-row">
-            <Chip kind={s.status} word={chipWord(id, s)} large />
-            <h1 tabIndex={-1}>{sess ? <span className="num">{sess.speed.toFixed(2)} speed</span> : r ? <span className="num">{plain(r)}</span> : 'No reading'}</h1>
-          </div>
-          <p>{s.summary}</p>
-          {r && <p className="cap">{r.window ? `Recorded ${stamp(r.window.from)} to ${clock(r.window.to)}` : `Entered ${stamp(r.at)}`} · {age(r.at, now)} · <Prov p={r.provenance} /> · {r.source}</p>}
-          {r?.quality && <p className="cap">Data quality: {r.quality.note}</p>}
-          {r && id === 'sleep' && <SleepTrack minutes={r.value} off={disputed.includes(r.id)} />}
-          {r && (id === 'hrv' || id === 'heartRate') && (s.baseline ? <BaselineTrack value={r.value} baseline={s.baseline} unit={r.unit} /> : s.baselineNeeded !== undefined ? <BuildingTrack have={7 - s.baselineNeeded} /> : null)}
-          {sess && <SpeedScale speed={sess.speed} mean={REFERENCE.mean} sd={REFERENCE.sd} label="reference" />}
-          {(id === 'bloodPressure' || id === 'bloodSugar') && <div className="row"><Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Log blood pressure and blood sugar</Btn></div>}
-          {id === 'temperature' && <div className="row"><Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'temp' })}>Log temperature</Btn></div>}
-          {id === 'alertness' && <div className="row"><Btn variant="primary" onClick={() => go({ view: 'check' })}>Run alertness check</Btn></div>}
-          {(id === 'mood' || id === 'sleepiness') && !(r && r.provenance === 'self-reported' && missionDay(r.at) === missionDay(now)) && <div className="row"><Btn variant="primary" onClick={() => go({ view: 'checkin' })}>Start check-in</Btn></div>}
-        </section>
-        <aside>
-          <section className="panel stack-sm">
-            <h2>Why it matters in space</h2>
-            <p className="sm">{info.why}</p>
+      <div className="today">
+        <div className="main-col">
+          <section className={`decision detail ${judged ? s.status : ''}`} aria-labelledby="det-h">
+            {judged ? <Mark kind={s.status as 'ok' | 'watch' | 'act'} scope={info.name} large /> : <p className="mark lg task"><b>{scope}</b></p>}
+            <h1 id="det-h" tabIndex={-1} className="value-h">
+              {sess ? <>{Math.abs(sess.z).toFixed(1)} <small>SD {sess.z >= 0 ? 'slower than reference' : 'faster than reference'}</small></>
+                : r && current ? <Value r={r} className="bigval" />
+                  : r ? <span className="na">{id === 'sleep' || id === 'hrv' || id === 'heartRate' ? 'No overnight recording' : 'No current reading'}</span>
+                    : <span className="na">No reading yet</span>}
+            </h1>
+            {(current || !r) && <p className="reason">{s.summary}</p>}
+            {r && (
+              <p className="limit">
+                {current ? (r.window ? `${clock(r.window.from)}–${clock(r.window.to)}` : `Entered ${clock(r.at)}`) : `Last available: ${plain(r)} · ${stamp(r.at)}`} · {age(r.at, now)} · <Prov p={r.provenance} />
+                {r.quality && !r.quality.usable ? <> · <b>{r.quality.note}</b></> : null}
+              </p>
+            )}
+            {r && current && id === 'sleep' && <SleepTrack minutes={r.value} off={disputed.includes(r.id)} concern={s.status === 'watch'} />}
+            {r && current && (id === 'hrv' || id === 'heartRate') && (s.baseline ? <BaselineTrack value={r.value} baseline={s.baseline} unit={r.unit} /> : s.baselineNeeded !== undefined ? <BuildingTrack have={7 - s.baselineNeeded} /> : null)}
+            {action && <div className="row actions">{action}</div>}
           </section>
+
+          {id !== 'alertness' && (
+            <section className="panel stack-sm">
+              <h2>Last 8 mission days</h2>
+              {pts.filter((p) => p.day > missionDay(now) - 8).length >= 3
+                ? <div className="chartbox"><Trend id={id} list={list} baseline={s.baseline} /></div>
+                : (
+                  <>
+                    <p className="sm muted">Fewer than 3 readings, so no trend is drawn.</p>
+                    <ul className="rows records">{[...list].reverse().slice(0, 4).map((x) => (
+                      <li key={x.id}><span className="num">{stamp(x.at)}</span><b className="num">{plain(x)}</b><Prov p={x.provenance} /></li>
+                    ))}</ul>
+                  </>
+                )}
+            </section>
+          )}
+          {id === 'alertness' && (
+            <section className="panel stack-sm">
+              <h2>Sessions</h2>
+              {sessions.length ? (
+                <table>
+                  <thead><tr><th>When</th><th>Result</th><th>Lapses</th><th>Band</th><th>Source</th></tr></thead>
+                  <tbody>{[...sessions].reverse().map((x) => (
+                    <tr key={x.id}>
+                      <td className="num"><button className="btn quiet small" onClick={() => go({ view: 'result', id: x.id })}>{stamp(x.at)}</button></td>
+                      {x.valid ? <><td className="num">{Math.abs(x.z).toFixed(1)} SD {x.z >= 0 ? 'slower' : 'faster'}</td><td className="num">{x.lapses}</td><td><Chip kind={x.band} /></td></> : <td colSpan={3}>Not scored. {x.invalidReason}</td>}
+                      <td><Prov p={x.provenance} /></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              ) : <p className="sm muted">No session yet. A trend needs 3 or more comparable sessions.</p>}
+            </section>
+          )}
+
+          <section className="panel tight disclosures">
+            <details>
+              <summary><h2>Why it matters in space</h2></summary>
+              <div className="body"><p>{info.why}</p></div>
+            </details>
+            <details>
+              <summary><h2>How it is measured</h2></summary>
+              <div className="body"><p>{info.how}</p></div>
+            </details>
+            {isNight && (
+              <details>
+                <summary><h2>Across last night</h2><span className="cap">Earth dataset · {scenario.nightSeries.length} five-minute windows</span></summary>
+                <div className="body">
+                  <NightChart series={scenario.nightSeries} pick={id === 'hrv' ? 'rmssd' : 'hr'} unit={id === 'hrv' ? 'ms' : 'bpm'}
+                    summary={`${id === 'hrv' ? 'RMSSD' : 'Heart rate'} in ${scenario.nightSeries.length} five-minute windows through the night. ${id === 'hrv' ? 'The night value is the median window.' : 'The night value is the mean.'}`} />
+                </div>
+              </details>
+            )}
+            <details>
+              <summary><h2>Sources</h2><span className="cap">{info.sources.length} references</span></summary>
+              <div className="body">
+                <ul className="rows">
+                  {info.sources.map((k) => (
+                    <li key={k}>
+                      <a href={SOURCES[k].url} target="_blank" rel="noopener noreferrer">{SOURCES[k].label}<span className="sr"> (opens in new tab)</span></a>
+                      {SOURCES[k].nasa && <span className="prov" style={{ marginLeft: 8 }}>NASA</span>}
+                      <p className="cap">{SOURCES[k].detail}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+            {list.length > 0 && (
+              <details>
+                <summary><h2>All readings</h2><span className="cap">{list.length} record{list.length === 1 ? '' : 's'}</span></summary>
+                <div className="body">
+                  <table>
+                    <thead><tr><th>When</th><th>Value</th><th>Origin</th><th>Note</th></tr></thead>
+                    <tbody>{[...list].reverse().map((x) => (
+                      <tr key={x.id}><td className="num">{stamp(x.at)}</td><td className="num">{plain(x)}</td><td><Prov p={x.provenance} /></td><td>{x.quality ? x.quality.note : x.source}</td></tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </details>
+            )}
+          </section>
+        </div>
+        <aside className="side">
           <section className="panel stack-sm">
             <h2>Rule</h2>
             <p className="sm">{s.rule}</p>
-            <p className="cap">{s.rule.startsWith('No ') ? 'No rule applied' : BASIS[s.basis]}</p>
+            <p className={`basis ${noRule ? '' : s.basis}`}>{noRule ? 'No rule applied' : BASIS[s.basis]}</p>
+          </section>
+          <section className="panel stack-sm">
+            <h2>Limits</h2>
+            <p className="sm">{info.limit}</p>
+            {s.baseline?.synthetic && <p className="sm"><b>Demo baseline.</b> Built from {s.baseline.n} synthetic nights, not from your own recordings.</p>}
           </section>
         </aside>
       </div>
-
-      {id !== 'alertness' && list.length > 0 && (
-        <div className={isNight ? 'split even' : ''}>
-          <section className="panel stack-sm">
-            <h2>Last 8 mission days</h2>
-            <div className="chartbox"><Trend id={id} list={list} baseline={s.baseline} /></div>
-          </section>
-          {isNight && (
-            <section className="panel stack-sm right">
-              <h2>Across last night · real recording</h2>
-              <NightChart series={scenario.nightSeries} pick={id === 'hrv' ? 'rmssd' : 'hr'} unit={id === 'hrv' ? 'ms' : 'bpm'}
-                summary={`${id === 'hrv' ? 'RMSSD' : 'Heart rate'} in ${scenario.nightSeries.length} five-minute windows through the night. ${id === 'hrv' ? 'The night value is the median window.' : 'The night value is the mean.'}`} />
-            </section>
-          )}
-        </div>
-      )}
-      {id === 'alertness' && (
-        <section className="panel stack-sm">
-          <h2>Sessions</h2>
-          {sessions.length ? (
-            <table>
-              <thead><tr><th>When</th><th>Speed</th><th>vs comparison</th><th>Lapses</th><th>Band</th><th>Source</th></tr></thead>
-              <tbody>{[...sessions].reverse().map((x) => (
-                <tr key={x.id}>
-                  <td className="num"><button className="btn quiet small" onClick={() => go({ view: 'result', id: x.id })}>{stamp(x.at)}</button></td>
-                  {x.valid ? <><td className="num">{x.speed.toFixed(2)}</td><td className="num">{x.z.toFixed(1)} SD</td><td className="num">{x.lapses}</td><td><Chip kind={x.band} /></td></> : <td colSpan={4}>Not scored. {x.invalidReason}</td>}
-                  <td><Prov p={x.provenance} /></td>
-                </tr>
-              ))}</tbody>
-            </table>
-          ) : <p className="sm muted">No session yet. A trend needs 3 or more comparable sessions.</p>}
-        </section>
-      )}
-
-      <div className="split even">
-        <section className="panel stack-sm">
-          <h2>How it is measured</h2>
-          <p className="sm">{info.how}</p>
-          <h2 style={{ marginTop: 8 }}>What this app does not claim</h2>
-          <p className="sm">{info.limit}</p>
-        </section>
-        <section className="panel stack-sm right">
-          <h2>Sources</h2>
-          <ul className="rows">
-            {info.sources.map((k) => (
-              <li key={k}>
-                <a href={SOURCES[k].url} target="_blank" rel="noopener noreferrer">{SOURCES[k].label}<span className="sr"> (opens in new tab)</span></a>
-                {SOURCES[k].nasa && <span className="prov" style={{ marginLeft: 8 }}>NASA</span>}
-                <p className="cap">{SOURCES[k].detail}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-
-      {id !== 'alertness' && list.length > 0 && (
-        <section className="panel tight">
-          <details>
-            <summary><h2>All readings</h2><span className="cap">{list.length} records</span></summary>
-            <div className="body">
-              <table>
-                <thead><tr><th>When</th><th>Value</th><th>Origin</th><th>Source</th></tr></thead>
-                <tbody>{[...list].reverse().map((x) => (
-                  <tr key={x.id}><td className="num">{stamp(x.at)}</td><td className="num">{plain(x)}</td><td><Prov p={x.provenance} /></td><td>{x.source}{x.quality ? ` · ${x.quality.note}` : ''}</td></tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </details>
-        </section>
-      )}
       <Foot />
     </>
   );

@@ -72,7 +72,7 @@ export function LogView() {
 
 const BASIS: Record<RuleBasis, string> = {
   published: 'Published threshold',
-  'team-starting-point': 'Team starting point, not validated',
+  'team-starting-point': 'Demo rule · not validated',
   'clinical-reference': 'Earth clinical reference',
 };
 
@@ -111,9 +111,9 @@ export function SourcesView() {
         <h2>Every rule, and where its threshold comes from</h2>
         <table>
           <thead><tr><th>Indicator</th><th>Rule</th><th>Basis</th></tr></thead>
-          <tbody>{INDICATORS.map((i) => <tr key={i}><td><b>{INFO[i].name}</b></td><td>{ev.statuses[i].rule}</td><td>{ev.statuses[i].rule.startsWith('No ') ? 'No rule applied' : BASIS[ev.statuses[i].basis]}</td></tr>)}</tbody>
+          <tbody>{INDICATORS.map((i) => <tr key={i}><td><b>{INFO[i].name}</b></td><td>{ev.statuses[i].rule}</td><td>{/^(No rule|This prototype)/.test(ev.statuses[i].rule) ? 'No rule applied' : BASIS[ev.statuses[i].basis]}</td></tr>)}</tbody>
         </table>
-        <p className="sm muted">“Team starting point” means a first value chosen by the team from the cited literature. It has not been validated and would need review by flight surgeons before any real use. Heart rate, HRV and blood pressure are compared only with in-flight nights, never with pre-flight values, because all three fall in microgravity.</p>
+        <p className="sm muted">“Demo rule” means a first value chosen by the team from the cited literature. It is not validated and would need review by flight surgeons before any real use. Heart rate, HRV and blood pressure are compared only with in-flight nights, never with pre-flight values, because all three fall in microgravity.</p>
       </section>
 
       <section className="panel stack-sm">

@@ -85,7 +85,7 @@ export const INFO: Record<IndicatorId, IndicatorInfo> = {
     name: 'Blood pressure', short: 'Blood pressure', unit: 'mmHg', region: 'chest',
     how: 'Cuff reading, typed in. About 15 seconds. Asked weekly, or early if your heart rate is flagged.',
     why: 'Diastolic pressure falls in flight as fluid shifts headward. Your own trend matters more than an Earth clinic cut-off.',
-    limit: 'No in-flight rule is applied. Earth cut-offs are not shown as if they held in microgravity.',
+    limit: 'This prototype does not interpret blood pressure. Earth clinic cut-offs are not applied, because pressure changes in microgravity and no validated in-flight rule is used here.',
     sources: ['fritsch1996', 'hazards'],
   },
   bloodSugar: {

@@ -368,3 +368,15 @@ td.num { white-space: nowrap; }
 .flow li.done .num { background: var(--ink); border-color: var(--ink); color: var(--inverse); }
 .flow li.now { color: var(--ink); font-weight: 600; }
 .flow li.now .num { border: 2px solid var(--ink); }
+
+/* ---------- Indicator detail ---------- */
+.decision.detail { min-height: 0; }
+.value-h .bigval, .value-h { font: var(--t-big); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.value-h small, .value-h .bigval small { font: 400 18px/24px var(--sans); color: var(--ink-2); letter-spacing: 0; }
+.value-h .na { font: 600 28px/36px var(--sans); color: var(--ink-2); letter-spacing: 0; }
+.chart .line.syn { stroke-dasharray: 5 4; stroke-width: 1.5; }
+.records li { display: grid; grid-template-columns: 150px 140px auto; gap: 12px; align-items: center; justify-items: start; }
+.disclosures details { border-top: var(--line); }
+.disclosures details:first-child { border-top: 0; }
+.basis { font: var(--t-sm); color: var(--ink-2); }
+.basis.team-starting-point { color: var(--watch-text); font-weight: 600; }
