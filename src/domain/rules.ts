@@ -88,7 +88,7 @@ export function evaluate(input: RuleInput): Evaluation {
       const pct = Math.round((1 - hrv.value / Math.exp(baseline.mean)) * 100);
       lowHrv = z < -1;
       S.hrv = st('hrv', lowHrv ? 'watch' : 'ok',
-        lowHrv ? `${pct} % below your 7-night average.` : 'Within your usual range.', hrvRule, 'team-starting-point', hrv, baseline);
+        lowHrv ? `${pct} % below the ${baseline.synthetic ? 'demo baseline' : '7-night average'}.` : `Within the ${baseline.synthetic ? 'demo baseline' : 'usual range'}.`, hrvRule, 'team-starting-point', hrv, baseline);
     }
   }
 
@@ -108,9 +108,10 @@ export function evaluate(input: RuleInput): Evaluation {
   else if (disputed.includes(sleep.id)) S.sleep = st('sleep', 'none', 'Marked wrong by you. Not used.', sleepRule, 'team-starting-point', sleep);
   else {
     shortSleep = sleep.value < SHORT_SLEEP_ALONE_MIN || (sleep.value < SHORT_SLEEP_COMBINED_MIN && (lowHrv || kssHigh));
-    S.sleep = st('sleep', shortSleep ? 'watch' : 'ok',
+    const pending = !shortSleep && sleep.value < SHORT_SLEEP_COMBINED_MIN && !today(kss);
+    S.sleep = st('sleep', shortSleep ? 'watch' : pending ? 'info' : 'ok',
       shortSleep ? (sleep.value < SHORT_SLEEP_ALONE_MIN ? 'Under 5 h.' : 'Under 6 h, with another sign of fatigue.')
-        : sleep.value < SHORT_SLEEP_COMBINED_MIN ? 'Under 6 h, with no other sign of fatigue.' : 'No short-sleep rule triggered.',
+        : sleep.value < SHORT_SLEEP_COMBINED_MIN ? (today(kss) ? 'Under 6 h, with no other sign of fatigue.' : 'Under 6 h. Today’s sleepiness has not been entered yet.') : 'No short-sleep rule triggered.',
       sleepRule, 'team-starting-point', sleep);
   }
 
@@ -125,7 +126,7 @@ export function evaluate(input: RuleInput): Evaluation {
     if (!baseline) S.heartRate = st('heartRate', 'none', `Baseline building: ${have} of ${BASELINE_NIGHTS} nights. Not compared yet.`, hrRule, 'team-starting-point', hr, null, BASELINE_NIGHTS - have);
     else {
       hrFlag = Math.abs(hr.value - baseline.mean) > 2 * (baseline.sd || 1);
-      S.heartRate = st('heartRate', hrFlag ? 'watch' : 'ok', hrFlag ? 'Outside your usual range.' : 'Within your usual range.', hrRule, 'team-starting-point', hr, baseline);
+      S.heartRate = st('heartRate', hrFlag ? 'watch' : 'ok', hrFlag ? `Outside the ${baseline.synthetic ? 'demo baseline' : 'usual range'}.` : `Within the ${baseline.synthetic ? 'demo baseline' : 'usual range'}.`, hrRule, 'team-starting-point', hr, baseline);
     }
   }
 
@@ -207,7 +208,7 @@ export function evaluate(input: RuleInput): Evaluation {
     issues.push({ id: 'heart-rate', level: 'watch', title: 'Log blood pressure and blood sugar', why: 'Sleeping heart rate was outside your usual range.', state: 'One night. Not a diagnosis. A cuff reading adds context.', evidence: ['heartRate', 'bloodPressure'] });
   }
   if (!today(mood) || mood.provenance !== 'self-reported') {
-    issues.push({ id: 'checkin', level: 'due', title: 'Daily check-in', why: 'A few taps, under 1 minute. Today’s summary needs your sleepiness and mood.', state: 'Today’s self-report: not entered yet.', evidence: ['sleep', 'hrv'] });
+    issues.push({ id: 'checkin', level: 'due', title: 'Daily check-in', why: 'A few taps, under 1 minute. Today’s summary needs your sleepiness and mood.', state: 'Today’s self-report: not entered yet.', evidence: ['sleep', 'hrv', 'heartRate'] });
   }
   if (!bp || now - bp.at >= WEEKLY) {
     issues.push({ id: 'bp-due', level: 'due', title: 'Weekly blood pressure and blood sugar', why: bp ? 'The last entry is 7 or more days old.' : 'No entry exists yet.', state: 'Routine entry. About 30 seconds.', evidence: ['bloodPressure', 'bloodSugar'] });

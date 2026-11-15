@@ -27,7 +27,8 @@ export function Btn(props: { children: ReactNode; onClick?: () => void; variant?
   );
 }
 
-const PROV: Record<Provenance, string> = { recorded: 'Recorded', synthetic: 'Synthetic', 'self-reported': 'Self-reported', 'measured-here': 'Measured here' };
+const PROV: Record<Provenance, string> = { recorded: 'Earth dataset · MMASH', synthetic: 'Synthetic history', 'self-reported': 'Entered by you', 'measured-here': 'Measured on this tablet' };
+export const provLabel = (p: Provenance): string => PROV[p];
 /** Provenance tag. Synthetic gets a dashed outline as well as the word. */
 export function Prov({ p }: { p: Provenance }) {
   return <span className={`prov ${p}`}>{PROV[p]}</span>;
@@ -52,19 +53,19 @@ export function plain(r: Reading): string {
 /* ---------- Micro-telemetry tracks ---------- */
 
 /** Sleep against the sourced in-flight crew average, on a full 0-8 h scale. */
-export function SleepTrack({ minutes, off }: { minutes: number; off?: boolean }) {
+export function SleepTrack({ minutes, off, concern }: { minutes: number; off?: boolean; concern?: boolean }) {
   const cur = Math.min(100, (minutes / 480) * 100), avg = (384 / 480) * 100;
   const under = minutes < 384;
   const diff = Math.abs(384 - minutes) / 60;
-  const text = off ? 'Marked wrong by you. Not used.' : `${diff.toFixed(1)} h ${under ? 'under' : 'over'} the 6.4 h crew average`;
+  const text = off ? 'Marked wrong by you. Not used.' : `${diff.toFixed(1)} h ${under ? 'under' : 'over'} the 6.4 h study crew average, which is descriptive, not a target`;
   return (
     <div className="track" role="img" aria-label={`Sleep ${duration(minutes)} on a 0 to 8 hour scale. ${text}`}>
       <div className={`rail${off ? ' off' : ''}`}>
         <span className="fill" style={{ width: `${cur}%` }} />
-        {!off && under && <span className="gap" style={{ left: `${cur}%`, width: `${avg - cur}%` }} />}
+        {!off && under && <span className={`gap${concern ? '' : ' quiet'}`} style={{ left: `${cur}%`, width: `${avg - cur}%` }} />}
         <span className="mark" style={{ left: `${avg}%` }} />
       </div>
-      <p className="cap" aria-hidden="true">0–8 h · mark: avg 6.4 h<br />{off ? 'Marked wrong · not used' : under ? `amber: ${diff.toFixed(1)} h under` : `${diff.toFixed(1)} h over`}</p>
+      <p className="cap" aria-hidden="true">{off ? 'Marked wrong · not used' : 'Mark: crew average 6.4 h, not a target'}</p>
     </div>
   );
 }
@@ -77,12 +78,12 @@ export function BaselineTrack({ value, baseline, unit }: { value: number; baseli
   const outside = value < baseline.low || value > baseline.high;
   const range = `${Math.round(baseline.low)}–${Math.round(baseline.high)} ${unit}`;
   return (
-    <div className="track" role="img" aria-label={`${value} ${unit}. Your usual range is ${range}, from ${baseline.n} nights${baseline.synthetic ? ', synthetic history' : ''}.`}>
+    <div className="track" role="img" aria-label={`${value} ${unit}. ${baseline.synthetic ? 'Demo baseline from ' + baseline.n + ' synthetic nights' : 'Your range from ' + baseline.n + ' nights'}: ${range}.`}>
       <div className="rail">
         <span className="band" style={{ left: `${pos(baseline.low)}%`, width: `${pos(baseline.high) - pos(baseline.low)}%` }} />
         <span className={`dot${outside ? ' warn' : ''}`} style={{ left: `${pos(value)}%` }} />
       </div>
-      <p className="cap" aria-hidden="true">Band: your usual {range}<br />{baseline.n} nights{baseline.synthetic ? ', synthetic' : ''}</p>
+      <p className="cap" aria-hidden="true">{baseline.synthetic ? `Demo baseline · ${baseline.n} synthetic nights · ${range}` : `Your ${baseline.n}-night range · ${range}`}</p>
     </div>
   );
 }

@@ -34,10 +34,12 @@ export function Back({ to, label }: { to: Route; label: string }) {
 
 export function Foot() {
   const { scenario } = useApp();
+  const { go } = useNav();
+  const night = scenario.readings.some((r) => r.provenance === 'recorded');
   return (
     <p className="foot">
-      Demo scenario “{scenario.def.name}”. Last night is a real recording from MMASH (PhysioNet, ODbL), made on Earth, not in flight.
-      Earlier nights are synthetic and marked so. Educational prototype. Not a medical device.
+      Prototype · demo scenario “{scenario.def.name}” · {night ? 'last night from an Earth dataset (MMASH)' : 'no overnight recording'} · earlier nights synthetic · not a medical device ·{' '}
+      <button type="button" className="linkish" onClick={() => go({ view: 'sources' })}>Sources and limits</button>
     </p>
   );
 }

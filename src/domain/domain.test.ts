@@ -77,7 +77,7 @@ describe('rules', () => {
     const sc = buildScenario('ordinary');
     const before = evaluate({ ...base, now: sc.startAt, readings: sc.readings });
     expect(before.issues.map((i) => i.id)).toEqual(['checkin']);
-    expect(before.statuses.sleep.status).toBe('ok');
+    expect(before.statuses.sleep.status).toBe('info'); // under 6 h, sleepiness not yet entered
 
     const low = evaluate({ ...base, now: sc.startAt + 1, readings: withCheckin(sc.readings, sc.startAt, 4) });
     expect(low.issues).toHaveLength(0);
