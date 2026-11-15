@@ -169,13 +169,13 @@ export function evaluate(input: RuleInput): Evaluation {
   }
 
   // ---- Temperature: fresh reading at or above 38.0 C ----
-  const tempRule = `Watch at or above ${FEVER_C.toFixed(1)} °C.`;
+  const tempRule = `Demo Watch: entered temperature at or above ${FEVER_C.toFixed(1)} °C.`;
   const temp = latest(readings, 'temperature');
   const fever = fresh(temp) && temp.value >= FEVER_C;
   S.temperature = !temp
-    ? st('temperature', 'none', 'Not measured. Asked when you report a symptom.', tempRule, 'clinical-reference', null)
-    : !fresh(temp) ? st('temperature', 'info', 'Not a current reading.', tempRule, 'clinical-reference', temp)
-      : st('temperature', fever ? 'watch' : 'ok', fever ? `At or above this demo’s ${FEVER_C.toFixed(1)} °C threshold.` : `Below ${FEVER_C.toFixed(1)} °C.`, tempRule, 'clinical-reference', temp);
+    ? st('temperature', 'none', 'Not measured. Asked when you report a symptom.', tempRule, 'team-starting-point', null)
+    : !fresh(temp) ? st('temperature', 'info', 'Not a current reading.', tempRule, 'team-starting-point', temp)
+      : st('temperature', fever ? 'watch' : 'ok', fever ? `At or above this demo’s ${FEVER_C.toFixed(1)} °C threshold.` : `Below ${FEVER_C.toFixed(1)} °C.`, tempRule, 'team-starting-point', temp);
 
   // ---- Triggers for an alertness check ----
   const triggers: string[] = [];

@@ -1,41 +1,68 @@
-import { useState } from 'react';
-import { INFO, SOURCES } from '../domain/content';
-import { FEVER_C, GLUCOSE_FASTING_RANGE, INDICATORS, series } from '../domain/rules';
+import { useState, type ReactNode } from 'react';
+import { INFO, KSS, MOOD, SOURCES } from '../domain/content';
+import { INDICATORS, series } from '../domain/rules';
 import { age, clock, missionDay, stamp } from '../domain/time';
-import type { Baseline, IndicatorId, Reading, RuleBasis } from '../domain/types';
+import type { Baseline, IndicatorId, Reading } from '../domain/types';
 import { useApp } from '../state/store';
-import { Btn, Chip, Icon, NightChart, Prov, TrendChart, Value, plain, type TrendPoint } from '../ui/primitives';
-import { Cell, Mark, explain } from './Today';
+import { Btn, Icon, NightChart, Prov, TrendChart, Value, plain, provLabel, type TrendPoint } from '../ui/primitives';
+import { Mark } from './Today';
 import { Foot, useNav } from '../ui/shared';
 
-const BASIS: Record<RuleBasis, string> = {
-  published: 'Published threshold',
-  'team-starting-point': 'Demo rule · not validated',
-  'clinical-reference': 'Earth clinical reference',
-};
+/* ---------- Measurements: one stable 3 × 3 inventory ---------- */
 
-export function Measurements() {
+const ORDER: IndicatorId[] = ['sleep', 'hrv', 'heartRate', 'sleepiness', 'mood', 'alertness', 'bloodPressure', 'bloodSugar', 'temperature'];
+
+function GridCell({ id }: { id: IndicatorId }) {
   const app = useApp();
   const { ev, now } = app;
-  const current = (id: IndicatorId) => id === 'alertness' ? !!ev.sessionToday : !!ev.statuses[id].latest && missionDay(ev.statuses[id].latest!.at) === missionDay(now);
-  const flagged = INDICATORS.filter((id) => ev.statuses[id].status === 'watch' || ev.statuses[id].status === 'act');
-  const today = INDICATORS.filter((id) => !flagged.includes(id) && current(id));
-  const rest = INDICATORS.filter((id) => !flagged.includes(id) && !current(id));
-  const group = (title: string, note: string, ids: IndicatorId[], past?: boolean) => ids.length > 0 && (
-    <section className="mgroup" aria-label={title}>
-      <h2 className="mgroup-h">{title} <span className="sm muted">· {note}</span></h2>
-      <div className={`grid3${past ? " compact" : ""}`}>{ids.map((id) => <Cell key={id} id={id} showLast={past} />)}</div>
-    </section>
+  const { go } = useNav();
+  const s = ev.statuses[id];
+  const flagged = s.status === 'watch' || s.status === 'act';
+  const r = s.latest;
+  const current = !!r && missionDay(r.at) === missionDay(now);
+  const sess = id === 'alertness' ? ev.sessionToday : null;
+  let value: ReactNode = null, line = '', meta = '';
+  if (sess) {
+    value = <span className="big">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>SD</small></span>;
+    line = sess.band === 'ok' ? 'Within reference band' : 'Slower than the study reference';
+    meta = `${clock(sess.at)} · ${sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}`;
+  } else if (r && current) {
+    value = <Value r={r} className="big" />;
+    const b = s.baseline;
+    if (b) line = `${r.value < b.low ? 'Below' : r.value > b.high ? 'Above' : 'Within'} ${b.synthetic ? 'demo' : 'your'} range: ${Math.round(b.low)}–${Math.round(b.high)} ${r.unit}`;
+    else if (s.baselineNeeded !== undefined) line = `Demo baseline: ${7 - s.baselineNeeded} of 7 nights`;
+    else if (id === 'sleepiness') line = KSS[r.value];
+    else if (id === 'mood') line = MOOD[r.value];
+    else line = s.summary;
+    meta = `${r.window ? `${clock(r.window.from)}–${clock(r.window.to)}` : clock(r.at)} · ${provLabel(r.provenance)}`;
+  } else if (r) {
+    value = <span className="na">Last reading</span>;
+    line = `${plain(r)} · ${age(r.at, now)}`;
+    meta = provLabel(r.provenance);
+  } else {
+    value = <span className="na">{id === 'alertness' ? 'Not tested today' : 'No reading recorded'}</span>;
+  }
+  return (
+    <button type="button" className="gcell" onClick={() => go({ view: 'indicator', id })}>
+      <span className="cell-head"><span className="label">{INFO[id].name}</span>{flagged && <span className={`contrib ${s.status}`}>Flagged by demo rule</span>}</span>
+      {value}
+      {line && <span className="sm">{line}</span>}
+      {meta && <span className="gmeta">{meta}</span>}
+    </button>
   );
+}
+
+export function Measurements() {
+  const { ev, now } = useApp();
+  const flagged = ORDER.filter((id) => ev.statuses[id].status === 'watch' || ev.statuses[id].status === 'act').length;
+  const current = ORDER.filter((id) => id === 'alertness' ? !!ev.sessionToday : !!ev.statuses[id].latest && missionDay(ev.statuses[id].latest!.at) === missionDay(now)).length;
   return (
     <>
-      <section className="panel pagehead">
+      <section className="mhead">
         <h1 tabIndex={-1}>Measurements</h1>
-        <p className="sm muted">Tap a reading for its trend, its rule and its sources.</p>
+        <p className="sm muted">{flagged} flagged by demo rules · {current} current reading{current === 1 ? '' : 's'}</p>
       </section>
-      {group('Flagged by demo rule', `${flagged.length} reading${flagged.length === 1 ? '' : 's'}`, flagged)}
-      {group('Today’s readings', 'no rule triggered', today)}
-      {group('Not current or not recorded', 'not used for today', rest, true)}
+      <div className="inventory">{ORDER.map((id) => <GridCell key={id} id={id} />)}</div>
       <Foot />
     </>
   );
@@ -48,33 +75,51 @@ function points(list: Reading[]): TrendPoint[] {
   return [...byDay.entries()].map(([day, r]) => ({ day, v: r.value, v2: r.value2, prov: r.provenance }));
 }
 
+/** Chart-specific legends: only the marks that chart actually shows. */
 function Trend({ id, list, baseline }: { id: IndicatorId; list: Reading[]; baseline: Baseline | null }) {
   const { now } = useApp();
   const today = missionDay(now);
   const pts = points(list);
-  const recent = pts.filter((p) => p.day > today - 8);
-  const syn = recent.filter((p) => p.prov === 'synthetic').length;
-  const tail = `${recent.length} reading${recent.length === 1 ? '' : 's'} in the last 8 days${syn ? `, ${syn} synthetic` : ''}.`;
-  const common = { points: pts, today };
+  const latestProv = pts.length ? pts[pts.length - 1].prov : 'synthetic';
+  const real = latestProv === 'recorded' ? 'Earth dataset · MMASH' : latestProv === 'self-reported' ? 'Entered by you' : 'Measured on this tablet';
+  const common = { points: pts, today, height: 134, compact: true };
   switch (id) {
     case 'sleep':
-      return <TrendChart {...common} kind="bar" scale={[0, 480]} fmt={(v) => `${Math.round(v / 60)} h`} refLine={{ v: 384, label: 'study crew average 6.4 h · not a target' }} summary={`Sleep per night on a 0 to 8 h scale. ${tail}`} />;
+      return <TrendChart {...common} kind="bar" scale={[0, 480]} fmt={(v) => `${Math.round(v / 60)} h`} refLine={{ v: 384, label: '' }}
+        legend={[{ mark: 'bar-syn', label: 'Synthetic history' }, { mark: 'bar-real', label: real }, { mark: 'line', label: 'Study crew average: 6.4 h · descriptive, not a target' }]}
+        summary="Sleep per night on a 0 to 8 h scale." />;
     case 'hrv':
     case 'heartRate':
-      return <TrendChart {...common} kind="line" baseline={baseline} bandLabel={baseline?.synthetic ? 'Demo baseline · synthetic nights' : 'Your 7-night range'} summary={`${INFO[id].name} per night${baseline ? `, against ${baseline.synthetic ? 'a demo baseline built from synthetic nights' : 'your 7-night range'} of ${Math.round(baseline.low)} to ${Math.round(baseline.high)} ${INFO[id].unit}` : ''}. ${tail}`} />;
+      return <TrendChart {...common} kind="line" baseline={baseline}
+        legend={[{ mark: 'syn', label: 'Synthetic history' }, { mark: 'real', label: real }, ...(baseline ? [{ mark: 'band' as const, label: `${baseline.synthetic ? 'Synthetic baseline' : 'Your range'}: ${Math.round(baseline.low)}–${Math.round(baseline.high)} ${INFO[id].unit}` }] : [])]}
+        summary={`${INFO[id].name} per night.`} />;
     case 'mood':
-      return <TrendChart {...common} kind="dots" scale={[1, 5]} summary={`Mood per day, 1 to 5. ${tail}`} />;
+      return <TrendChart {...common} kind="dots" scale={[1, 5]} legend={[{ mark: 'syn', label: 'Synthetic history' }, { mark: 'real', label: 'Entered by you' }]} summary="Mood per day, 1 to 5." />;
     case 'sleepiness':
-      return <TrendChart {...common} kind="dots" scale={[1, 9]} refLine={{ v: 7, label: 'check recommended at 7' }} summary={`Sleepiness per day, 1 to 9. ${tail}`} />;
-    case 'bloodPressure':
-      return <TrendChart {...common} kind="range" summary={`Systolic (circle) and diastolic (diamond) pressure. ${tail}`} />;
-    case 'bloodSugar':
-      return <TrendChart {...common} kind="dots" baseline={{ mean: 82, sd: 17, n: 0, synthetic: false, low: GLUCOSE_FASTING_RANGE.low, high: GLUCOSE_FASTING_RANGE.high }} bandLabel="Fasting lab range 65–99 mg/dL" summary={`Blood sugar readings against the fasting lab range. ${tail}`} />;
-    case 'temperature':
-      return <TrendChart {...common} kind="dots" scale={[35, 40]} fmt={(v) => v.toFixed(1)} refLine={{ v: FEVER_C, label: '38.0 °C' }} summary={`Temperature readings. ${tail}`} />;
+      return <TrendChart {...common} kind="dots" scale={[1, 9]} refLine={{ v: 7, label: '' }}
+        legend={[{ mark: 'syn', label: 'Synthetic history' }, { mark: 'real', label: 'Entered by you' }, { mark: 'line', label: 'Demo check threshold: 7' }]}
+        summary="Sleepiness per day, 1 to 9." />;
     default:
       return null;
   }
+}
+
+/** Rule and limit wording for the rail; synthetic baselines say exactly what they are. */
+function railCopy(id: IndicatorId, s: ReturnType<typeof useApp>['ev']['statuses'][IndicatorId]): { rule: string; basis: string; limit: string } {
+  const info = INFO[id];
+  if ((id === 'hrv' || id === 'heartRate') && (s.baseline?.synthetic || s.baselineNeeded !== undefined)) {
+    return {
+      rule: id === 'hrv'
+        ? 'Demo Watch: nightly RMSSD more than 1 SD below the mean of seven synthetic baseline nights. No comparison until seven baseline nights are available.'
+        : 'Demo Watch: sleeping heart rate more than 2 SD from the mean of seven synthetic baseline nights. No comparison until seven baseline nights are available.',
+      basis: 'Demo rule · not clinically validated',
+      limit: 'This comparison uses a synthetic demo baseline, not your personal recordings. The current value comes from an Earth recording in MMASH. It does not establish an in-flight health finding.',
+    };
+  }
+  if (id === 'bloodPressure') return { rule: 'No interpretation rule is configured.', basis: '', limit: 'This prototype stores blood-pressure readings without assigning a normal or abnormal classification.' };
+  if (id === 'temperature') return { rule: 'Demo Watch: entered temperature at or above 38.0 °C.', basis: 'Demo rule · not clinically validated', limit: 'Measurement method and context affect temperature interpretation. This prototype uses a demonstration threshold; one entry is not a diagnosis.' };
+  if (id === 'mood') return { rule: 'No rule. Shown for your own trend.', basis: '', limit: info.limit };
+  return { rule: s.rule, basis: s.basis === 'clinical-reference' ? 'Earth lab range · applied as a demo rule' : 'Demo rule · not clinically validated', limit: info.limit };
 }
 
 export function IndicatorDetail({ id }: { id: IndicatorId }) {
@@ -90,74 +135,99 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
   const judged = s.status === 'watch' || s.status === 'act';
   const isNight = r?.provenance === 'recorded' && scenario.nightSeries.length > 0 && (id === 'hrv' || id === 'heartRate');
   const pts = points(list);
-  const noRule = s.rule.startsWith('This prototype') || s.rule.startsWith('No rule');
-  const action =
-    id === 'bloodPressure' || id === 'bloodSugar' ? <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Log blood pressure and blood sugar</Btn>
-      : id === 'temperature' ? <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'temp' })}>Log temperature</Btn>
-        : id === 'alertness' ? <Btn variant="primary" onClick={() => go({ view: 'check' })}>Run alertness check</Btn>
-          : (id === 'mood' || id === 'sleepiness') && !(r && r.provenance === 'self-reported' && current) ? <Btn variant="primary" onClick={() => go({ view: 'checkin' })}>Start check-in</Btn>
-            : null;
+  const rail = railCopy(id, s);
+  const alertIssue = ev.issues.some((i) => i.id.startsWith('alertness'));
+  const tempIssue = ev.issues.some((i) => i.id === 'temperature');
+  const recent = pts.filter((p) => p.day > missionDay(now) - 8).length;
+
+  let hero: ReactNode;
+  if (id === 'alertness') {
+    hero = sess ? (
+      <>
+        {sess.band === 'ok'
+          ? <Mark kind="clear" word="Within reference band" scope={`Alertness check · ${sess.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this tablet'}`} large />
+          : <Mark kind={sess.band} scope={`Alertness check${sess.provenance === 'synthetic' ? ' · Simulated result' : ''}`} large />}
+        <h1 id="det-h" tabIndex={-1} className="value-h">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>SD</small></h1>
+        <p className="reason">{sess.z >= 0 ? 'Slower' : 'Faster'} than the study reference{sess.band === 'ok' ? '; within the displayed ±1 SD band.' : '.'}</p>
+        <p className="limit">Completed {clock(sess.at)} · {sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}</p>
+        <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'result', id: sess.id })}>View latest result</Btn><Btn variant="quiet" onClick={() => go({ view: 'check' })}>Start another check</Btn></div>
+        <p className="limit">{sess.band === 'ok' ? 'Demo classification' : 'Demo rule'} · not clinically validated</p>
+      </>
+    ) : (
+      <>
+        <p className="mark lg task"><b>{info.name}</b></p>
+        <h1 id="det-h" tabIndex={-1} className="value-h"><span className="na">Not tested today</span></h1>
+        <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'check' })}>Start alertness check</Btn></div>
+      </>
+    );
+  } else {
+    hero = (
+      <>
+        {judged ? <Mark kind={s.status as 'watch' | 'act'} scope={info.name} large /> : <p className="mark lg task"><b>{info.name}</b></p>}
+        <h1 id="det-h" tabIndex={-1} className="value-h">
+          {r ? <Value r={r} className="bigval" /> : <span className="na">No reading recorded</span>}
+        </h1>
+        {r && current && (
+          <p className="reason">{id === 'sleepiness' ? KSS[r.value] : id === 'mood' ? MOOD[r.value] : s.baseline
+            ? `${r.value < s.baseline.low ? 'Below' : r.value > s.baseline.high ? 'Above' : 'Within'} ${s.baseline.synthetic ? 'demo' : 'your'} range: ${Math.round(s.baseline.low)}–${Math.round(s.baseline.high)} ${r.unit}${s.status === 'watch' ? ` · ${s.summary.replace(/\.$/, '')}` : ''}`
+            : s.baselineNeeded !== undefined ? `Demo baseline: ${7 - s.baselineNeeded} of 7 nights · no comparison yet` : s.summary}</p>
+        )}
+        {r && <p className="limit">{current ? (r.window ? `${clock(r.window.from)}–${clock(r.window.to)}` : `Entered ${clock(r.at)}`) : `Last reading · ${stamp(r.at)} · ${age(r.at, now)}`} · <Prov p={r.provenance} />{r.quality && !r.quality.usable ? <> · <b>{r.quality.note}</b></> : null}</p>}
+        {id === 'temperature' && tempIssue && r && <p className="followup"><b>Re-check scheduled for {clock(r.at + 30)}</b> · In {Math.max(1, Math.ceil(r.at + 30 - now))} min</p>}
+        <div className="row actions">
+          {judged && alertIssue && (id === 'sleep' || id === 'hrv' || id === 'sleepiness' || id === 'heartRate') && <Btn variant="primary" onClick={() => go({ view: 'today' })}>View alertness follow-up</Btn>}
+          {id === 'temperature' && (tempIssue
+            ? <><Btn variant="primary" onClick={() => go({ view: 'today' })}>View temperature follow-up</Btn><Btn variant="quiet" onClick={() => go({ view: 'entry', kind: 'temp' })}>Enter another reading</Btn></>
+            : <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'temp' })}>Enter a reading</Btn>)}
+          {(id === 'bloodPressure' || id === 'bloodSugar') && <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Enter blood pressure and sugar</Btn>}
+          {(id === 'mood' || id === 'sleepiness') && !(r && r.provenance === 'self-reported' && current) && <Btn variant="primary" onClick={() => go({ view: 'checkin' })}>Start check-in</Btn>}
+        </div>
+        {judged && <p className="limit">{rail.basis}</p>}
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="today">
+      <div className="today fixed">
         <div className="main-col">
-          <section className={`decision detail ${judged ? s.status : ''}`} aria-labelledby="det-h">
-            {judged ? <Mark kind={s.status as 'watch' | 'act'} scope={info.name} large /> : <p className="mark lg task"><b>{info.name}</b></p>}
-            <h1 id="det-h" tabIndex={-1} className="value-h">
-              {sess ? <>{Math.abs(sess.z).toFixed(1)} <small>SD {sess.z >= 0 ? 'slower than reference' : 'faster than reference'}</small></>
-                : r && current ? <Value r={r} className="bigval" />
-                  : r ? <span className="na">{id === 'sleep' || id === 'hrv' || id === 'heartRate' ? 'No overnight recording' : 'No current reading'}</span>
-                    : <span className="na">No reading yet</span>}
-            </h1>
-            {(current || !r) && <p className="reason">{s.summary}</p>}
-            {r && (
-              <p className="limit">
-                {current ? (r.window ? `${clock(r.window.from)}–${clock(r.window.to)}` : `Entered ${clock(r.at)}`) : `Last available: ${plain(r)} · ${stamp(r.at)}`} · {age(r.at, now)} · <Prov p={r.provenance} />
-                {r.quality && !r.quality.usable ? <> · <b>{r.quality.note}</b></> : null}
-              </p>
-            )}
-            {r && current && s.baseline && <p className="sm muted">{s.baseline.synthetic ? 'Demo range' : 'Your range'}: {Math.round(s.baseline.low)}–{Math.round(s.baseline.high)} {r.unit}{r.indicator === 'hrv' || r.indicator === 'heartRate' ? ` · ${explain(id, app).split('\n')[0]}` : ''}</p>}
-            {r && current && !s.baseline && s.baselineNeeded !== undefined && <p className="sm muted">Demo baseline: {7 - s.baselineNeeded} of 7 nights · no comparison yet</p>}
-            {judged && <p className="limit">{s.basis === 'clinical-reference' ? 'Earth clinical reference · applied as a demo rule' : 'Demo rule · not clinically validated'}</p>}
-            {action && <div className="row actions">{action}</div>}
+          <section className={`decision detail ${judged ? s.status : id === 'alertness' && sess?.band === 'ok' ? 'clear' : ''}`} aria-labelledby="det-h">
+            {hero}
           </section>
-
-          {id !== 'alertness' && (
-            <section className="panel stack-sm">
-              <h2>Last 8 mission days</h2>
-              {pts.filter((p) => p.day > missionDay(now) - 8).length >= 3
-                ? <div className="chartbox"><Trend id={id} list={list} baseline={s.baseline} /></div>
-                : (
-                  <>
-                    <p className="sm muted">Fewer than 3 readings, so no trend is drawn.</p>
-                    <ul className="rows records">{[...list].reverse().slice(0, 4).map((x) => (
-                      <li key={x.id}><span className="num">{stamp(x.at)}</span><b className="num">{plain(x)}</b><Prov p={x.provenance} /></li>
-                    ))}</ul>
-                  </>
-                )}
-            </section>
-          )}
-          {id === 'alertness' && (
-            <section className="panel stack-sm">
-              <h2>Sessions</h2>
-              {sessions.length ? (
-                <table>
-                  <thead><tr><th>When</th><th>Result</th><th>Lapses</th><th>Band</th><th>Source</th></tr></thead>
-                  <tbody>{[...sessions].reverse().map((x) => (
-                    <tr key={x.id}>
-                      <td className="num"><button className="btn quiet small" onClick={() => go({ view: 'result', id: x.id })}>{stamp(x.at)}</button></td>
-                      {x.valid ? <><td className="num">{Math.abs(x.z).toFixed(1)} SD {x.z >= 0 ? 'slower' : 'faster'}</td><td className="num">{x.lapses}</td><td><Chip kind={x.band} /></td></> : <td colSpan={3}>Not scored. {x.invalidReason}</td>}
-                      <td><Prov p={x.provenance} /></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              ) : <p className="sm muted">No session yet. A trend needs 3 or more comparable sessions.</p>}
-            </section>
-          )}
-
+          <section className="pband" aria-labelledby="band-h">
+            {id === 'alertness' ? (
+              <>
+                <h2 id="band-h" className="rail-h">Latest sessions</h2>
+                {sessions.length ? (
+                  <table className="compact">
+                    <thead><tr><th>When</th><th>Result</th><th>Lapses</th><th>Band</th><th>Source</th></tr></thead>
+                    <tbody>{[...sessions].reverse().slice(0, 3).map((x) => (
+                      <tr key={x.id}>
+                        <td className="num"><button className="btn quiet small" onClick={() => go({ view: 'result', id: x.id })}>{stamp(x.at)}</button></td>
+                        {x.valid ? <><td className="num">{x.z >= 0 ? '+' : '−'}{Math.abs(x.z).toFixed(1)} SD</td><td className="num">{x.lapses}</td><td className={`bandtxt ${x.band}`}>{x.band === 'ok' ? 'Within band' : x.band === 'watch' ? 'Watch' : 'Act'}</td></> : <td colSpan={3}>Not scored</td>}
+                        <td><Prov p={x.provenance} test /></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                ) : <p className="sm muted">No session recorded.</p>}
+              </>
+            ) : recent >= 3 && (id === 'sleep' || id === 'hrv' || id === 'heartRate' || id === 'sleepiness' || id === 'mood') ? (
+              <>
+                <h2 id="band-h" className="rail-h">Demo history · 8 days</h2>
+                <Trend id={id} list={list} baseline={s.baseline} />
+              </>
+            ) : (
+              <>
+                <h2 id="band-h" className="rail-h">{list.length ? `${list.length} ${list.every((x) => x.provenance === 'synthetic') ? 'historical' : 'recorded'} entr${list.length === 1 ? 'y' : 'ies'}` : 'No entries'}</h2>
+                {list.length > 0 && <ul className="rows records">{[...list].reverse().slice(0, 4).map((x) => (
+                  <li key={x.id}><span className="num">{stamp(x.at)}</span><b className="num">{plain(x)}</b><Prov p={x.provenance} /></li>
+                ))}</ul>}
+              </>
+            )}
+          </section>
           <section className="panel tight disclosures onerow">
             <details>
-              <summary><h2>Background, sources and readings</h2></summary>
+              <summary><h2>Method, sources and records</h2></summary>
               <div className="body">
                 <h3 className="sub-h">Why it matters in space</h3>
                 <p>{info.why}</p>
@@ -182,7 +252,7 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
                 </ul>
                 {list.length > 0 && (
                   <>
-                    <h3 className="sub-h">All readings · {list.length} record{list.length === 1 ? '' : 's'}</h3>
+                    <h3 className="sub-h">All records · {list.length}</h3>
                     <table>
                       <thead><tr><th>When</th><th>Value</th><th>Origin</th><th>Note</th></tr></thead>
                       <tbody>{[...list].reverse().map((x) => (
@@ -197,14 +267,13 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
         </div>
         <aside className="side">
           <section className="panel stack-sm">
-            <h2>Rule</h2>
-            <p className="sm">{s.rule}</p>
-            <p className={`basis ${noRule ? '' : s.basis}`}>{noRule ? 'No rule applied' : BASIS[s.basis]}</p>
+            <h2 className="rail-h">Rule</h2>
+            <p className="sm">{rail.rule}</p>
+            {rail.basis && <p className="basis team-starting-point">{rail.basis}</p>}
           </section>
           <section className="panel stack-sm">
-            <h2>Limits</h2>
-            <p className="sm">{info.limit}</p>
-            {s.baseline?.synthetic && <p className="sm"><b>Demo baseline.</b> Built from {s.baseline.n} synthetic nights, not from your own recordings.</p>}
+            <h2 className="rail-h">Limits</h2>
+            <p className="sm">{rail.limit}</p>
           </section>
         </aside>
       </div>

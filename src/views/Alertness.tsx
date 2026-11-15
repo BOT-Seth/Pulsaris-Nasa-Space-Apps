@@ -229,7 +229,7 @@ export function Check() {
             </div>
             {shortTest && <p className="limit"><b>Demo length is on.</b> A 45-second run is not the validated 3-minute test; its result is indicative only.</p>}
           </section>
-          <section className="band" aria-label="Signal example">
+          <section className="pband" aria-label="Signal example">
             <h2 className="rail-h">Signal example</h2>
             <figure className="signal-demo">
               <div className="ring on"><span className="ms">214</span></div>
@@ -391,7 +391,7 @@ export function Result({ id }: { id: string }) {
       <div className="today fixed">
         <div className="main-col">
           {hero}
-          <section className="band" aria-labelledby="cmp-h">
+          <section className="pband" aria-labelledby="cmp-h">
             <h2 id="cmp-h" className="rail-h">Difference from study reference</h2>
             <div className="evid2">
               <ComparePlot s={s} />

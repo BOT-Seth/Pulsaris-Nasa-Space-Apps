@@ -46,7 +46,7 @@ export function LogView() {
         <p className="sm muted">What is coming up, and what has been recorded. Kept on this tablet.</p>
         {!storageOk && <p className="notice warn">This browser is blocking local storage. Records will be lost when the page closes.</p>}
       </section>
-      <div className="today">
+      <div className="today fill">
         <div className="main-col">
           <section className="panel stack-sm">
             <h2>Upcoming</h2>
@@ -92,7 +92,7 @@ export function LogView() {
 const BASIS: Record<RuleBasis, string> = {
   published: 'Published threshold',
   'team-starting-point': 'Demo rule · not validated',
-  'clinical-reference': 'Earth clinical reference',
+  'clinical-reference': 'Earth lab range · demo rule',
 };
 
 export function SourcesView() {

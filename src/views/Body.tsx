@@ -151,7 +151,7 @@ export function SymptomForm({ region }: { region?: RegionId }) {
         </section>
         <section className="panel q">
           <div className="field">
-            <label htmlFor="stemp" className="label">3. Temperature, optional</label>
+            <label htmlFor="stemp" className="qlabel">3. Temperature, optional</label>
             <div className="in"><input id="stemp" inputMode="decimal" autoComplete="off" value={d.temp} onChange={(e) => set({ temp: e.target.value })} aria-label="Temperature in degrees Celsius, optional" /><span>°C</span></div>
           </div>
         </section>
@@ -185,7 +185,7 @@ export function FlagView() {
   const n = items.length;
   return (
     <>
-      <div className="today">
+      <div className="today fill">
         <div className="main-col">
           <section className="decision task" aria-labelledby="fl-h">
             <p className="mark lg task"><b>Medical review</b><span className="scope">local only</span></p>

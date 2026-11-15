@@ -99,7 +99,7 @@ export const INFO: Record<IndicatorId, IndicatorInfo> = {
     name: 'Body temperature', short: 'Temperature', unit: '°C', region: 'whole',
     how: 'Thermometer reading, typed in. About 10 seconds. Asked only when you report a symptom.',
     why: 'Immune function changes in flight and the cabin is closed, so an infection matters. Resting core temperature also rises slowly on long missions.',
-    limit: '38.0 °C is the Earth clinical definition of fever. Because resting temperature runs higher in flight, one reading asks for a re-check.',
+    limit: 'Measurement method and context affect temperature interpretation. This prototype uses a demonstration threshold; one entry is not a diagnosis.',
     sources: ['stahn2017', 'hazards'],
   },
 };

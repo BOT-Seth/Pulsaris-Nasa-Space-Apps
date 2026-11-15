@@ -122,9 +122,12 @@ export function SpeedScale({ speed, mean, sd, label, compact }: { speed: number;
 export interface TrendPoint { day: number; v: number; v2?: number; prov: Provenance }
 type Kind = 'line' | 'bar' | 'dots' | 'range';
 
-export function TrendChart(props: { points: TrendPoint[]; today: number; days?: number; kind: Kind; baseline?: Baseline | null; scale?: [number, number]; refLine?: { v: number; label: string }; fmt?: (v: number) => string; bandLabel?: string; summary: string }) {
-  const { points, today, days = 8, kind, baseline, scale, refLine, fmt = (v) => String(Math.round(v)), bandLabel = 'Your usual range', summary } = props;
-  const W = 640, H = 210, L = 56, R = 16, T = 14, B = 30;
+export interface LegendItem { mark: 'syn' | 'real' | 'band' | 'line' | 'bar-syn' | 'bar-real'; label: string }
+
+export function TrendChart(props: { points: TrendPoint[]; today: number; days?: number; kind: Kind; baseline?: Baseline | null; scale?: [number, number]; refLine?: { v: number; label: string }; fmt?: (v: number) => string; bandLabel?: string; summary: string; height?: number; compact?: boolean; legend?: LegendItem[] }) {
+  const { points, today, days = 8, kind, baseline, scale, refLine, fmt = (v) => String(Math.round(v)), bandLabel = 'Your usual range', summary, height, compact, legend } = props;
+  const W = 640, H = height ?? 210, L = 56, R = 16, T = 10, B = 26;
+  const pr = compact ? 4 : 6;
   const first = today - days + 1;
   const vis = points.filter((p) => p.day >= first && p.day <= today);
   const vals = vis.flatMap((p) => (p.v2 === undefined ? [p.v] : [p.v, p.v2]));
@@ -147,7 +150,7 @@ export function TrendChart(props: { points: TrendPoint[]; today: number; days?: 
           <g key={i}><line className="axis" x1={L} x2={W - R} y1={y(t)} y2={y(t)} /><text x={L - 8} y={y(t) + 4} textAnchor="end">{fmt(t)}</text></g>
         ))}
         {baseline && <rect className="band" x={L} width={W - L - R} y={y(baseline.high)} height={Math.max(2, y(baseline.low) - y(baseline.high))} />}
-        {refLine && <g><line className="ref" x1={L} x2={W - R} y1={y(refLine.v)} y2={y(refLine.v)} /><text x={W - R} y={y(refLine.v) - 6} textAnchor="end">{refLine.label}</text></g>}
+        {refLine && <g><line className="ref" x1={L} x2={W - R} y1={y(refLine.v)} y2={y(refLine.v)} />{refLine.label && <text x={W - R} y={y(refLine.v) - 6} textAnchor="end">{refLine.label}</text>}</g>}
         {kind === 'line' && segs.flatMap((s) => s.slice(1).map((p, i) => <line key={p.day} className={`line${p.prov === 'synthetic' || s[i].prov === 'synthetic' ? ' syn' : ''}`} x1={x(s[i].day)} y1={y(s[i].v)} x2={x(p.day)} y2={y(p.v)} />))}
         {kind === 'bar' && vis.map((p) => <rect key={p.day} className={`bar ${cls(p)}`} x={x(p.day) - bw / 2} width={bw} y={y(p.v)} height={Math.max(0, y(lo) - y(p.v))} />)}
         {kind === 'range' && vis.map((p) => (
@@ -157,7 +160,7 @@ export function TrendChart(props: { points: TrendPoint[]; today: number; days?: 
             <rect className={`pt ${cls(p)}`} x={x(p.day) - 4.5} y={y(p.v2 ?? p.v) - 4.5} width="9" height="9" transform={`rotate(45 ${x(p.day)} ${y(p.v2 ?? p.v)})`} />
           </g>
         ))}
-        {(kind === 'line' || kind === 'dots') && vis.map((p) => <circle key={p.day} className={`pt ${cls(p)}`} cx={x(p.day)} cy={y(p.v)} r={p.day === today ? 8 : 6} />)}
+        {(kind === 'line' || kind === 'dots') && vis.map((p) => <circle key={p.day} className={`pt ${cls(p)}`} cx={x(p.day)} cy={y(p.v)} r={p.day === today ? pr + 1 : pr} />)}
         {Array.from({ length: days }, (_, i) => first + i).filter((d) => d >= 1).map((d) => (
           <text key={d} x={x(d)} y={H - 8} textAnchor="middle">{d === today ? 'Today' : `D${d}`}</text>
         ))}
@@ -165,11 +168,13 @@ export function TrendChart(props: { points: TrendPoint[]; today: number; days?: 
           <text key={`n${d}`} x={x(d)} y={y((lo + hi) / 2) + 4} textAnchor="middle">–</text>
         ))}
       </svg>
-      <div className="legend" aria-hidden="true">
-        <span><i className="last" />Latest, not synthetic</span><span><i />Recorded or entered</span><span><i className="syn" />Synthetic</span>
-        {baseline && <span><i className="bandkey" />{bandLabel}</span>}
-      </div>
-      <figcaption className="sm">{summary}</figcaption>
+      {legend
+        ? <div className="legend" aria-hidden="true">{legend.map((l) => <span key={l.label}><i className={`lk ${l.mark}`} />{l.label}</span>)}</div>
+        : <div className="legend" aria-hidden="true">
+            <span><i className="last" />Latest, not synthetic</span><span><i />Recorded or entered</span><span><i className="syn" />Synthetic</span>
+            {baseline && <span><i className="bandkey" />{bandLabel}</span>}
+          </div>}
+      {!compact && <figcaption className="sm">{summary}</figcaption>}
     </figure>
   );
 }

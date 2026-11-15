@@ -494,7 +494,7 @@ body.testing .toolbar, body.testing .dock { display: none; }
 [id] { scroll-margin-top: 112px; }
 
 /* ---------- Alertness round 3: fixed bands (decision 352, band 256, row 56, footer at 764) ---------- */
-.band { padding: 20px 24px; border-bottom: var(--line); display: grid; gap: 12px; align-content: start; }
+.pband { padding: 20px 24px; border-bottom: var(--line); display: grid; gap: 12px; align-content: start; }
 .onerow details > summary { min-height: 56px; padding: 0; }
 .sub-h { font: 600 15px/20px var(--sans); color: var(--ink); margin-top: 6px; }
 .signal-demo { display: flex; align-items: center; gap: 24px; justify-items: start; text-align: left; }
@@ -507,7 +507,52 @@ body.testing .toolbar, body.testing .dock { display: none; }
 @container (min-width: 900px) {
   .today.fixed { min-height: 664px; }
   .today.fixed .decision { min-height: 352px; }
-  .today.fixed .band { height: 256px; overflow: visible; }
+  .today.fixed .pband { height: 256px; overflow: visible; }
   .today.fixed .onerow { min-height: 56px; padding-block: 0 !important; }
 }
 @container (min-width: 900px) { .today.fixed .decision { padding-block: 22px 22px; gap: 14px; } }
+.bandtxt { font: 500 14px/20px var(--sans); }
+.bandtxt.watch { color: var(--watch-text); }
+.bandtxt.act { color: var(--act-text); }
+.form .q .field .qlabel { font: var(--t-section); color: var(--ink); }
+.form .q .field { width: 200px; }
+
+/* ---------- Measurements round 2 ---------- */
+.mhead { height: 88px; padding: 18px 24px 0; border-bottom: var(--line); display: grid; align-content: start; gap: 2px; }
+.mhead h1 { font: var(--t-status); }
+.inventory { display: grid; grid-template-columns: 1fr; border-bottom: var(--line); }
+.gcell { display: flex; flex-direction: column; gap: 4px; text-align: left; background: var(--bg); border: 0; border-bottom: var(--line); padding: 16px 24px; min-height: 192px; cursor: pointer; font: inherit; color: inherit; }
+.gcell:hover { background: var(--inset); }
+.gcell .cell-head { display: grid; gap: 2px; min-height: 38px; }
+.gcell .big { font: var(--t-big); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.gcell .big small { font: var(--t-unit); color: var(--ink-2); letter-spacing: 0; }
+.gcell .na { font: 600 20px/28px var(--sans); color: var(--ink-2); padding: 8px 0 4px; }
+.gcell .gmeta { margin-top: auto; font: var(--t-sm); color: var(--ink-2); }
+@container (min-width: 720px) {
+  .inventory { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gcell { height: 192px; border-right: var(--line); }
+  .gcell:nth-child(3n) { border-right: 0; }
+  .gcell:nth-last-child(-n + 3) { border-bottom: 0; }
+}
+.followup { font: var(--t-body); }
+.legend .lk { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
+.legend .lk.syn { border-radius: 50%; border: 2px solid var(--fill); background: var(--bg); }
+.legend .lk.real { border-radius: 50%; background: var(--ink); }
+.legend .lk.band { background: rgba(20, 21, 23, 0.12); width: 16px; }
+.legend .lk.line { height: 0; width: 18px; border-top: 2px dashed var(--ink); vertical-align: 3px; }
+.legend .lk.bar-syn { border: 1.5px dashed var(--fill); }
+.legend .lk.bar-real { background: var(--ink); }
+.legend { font: var(--t-sm) !important; }
+table.compact th, table.compact td { padding: 6px 12px 6px 0; }
+@container (min-width: 900px) { .today.fixed .pband .chart { max-height: 158px; } }
+.legend i.lk { border-radius: 0; background: none; border: 0; }
+.legend i.lk.syn { border-radius: 50%; border: 2px solid var(--fill); background: var(--bg); }
+.legend i.lk.real { border-radius: 50%; background: var(--ink); }
+.legend i.lk.band { background: rgba(20, 21, 23, 0.12); width: 16px; }
+.legend i.lk.line { height: 0; width: 18px; border-top: 2px dashed var(--ink); vertical-align: 3px; }
+.legend i.lk.bar-syn { border: 1.5px dashed var(--fill); background: none; }
+.legend i.lk.bar-real { background: var(--ink); }
+table.compact td { vertical-align: middle; }
+table.compact td .btn.quiet.small { min-height: 44px; padding: 0; display: inline-flex; align-items: center; font: 500 14px var(--mono); }
+/* Forms, flag and log pages: footer sits at the same 764px line as the locked pages */
+@container (min-width: 900px) { .today.fill { min-height: 664px; } .today.form { min-height: 720px; grid-template-rows: minmax(0, 1fr) auto; } }
