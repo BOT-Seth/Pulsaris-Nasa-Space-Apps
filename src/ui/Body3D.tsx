@@ -1,6 +1,7 @@
 // Interactive 3D body; source and generation provenance live in body-model.json.
 // Corrected model B, shaded with the calibrated chalk lighting fitted to the approved viewer
-// (chalk-lighting.glsl). Flags are localized amber markers; selection is a neutral highlight.
+// (chalk-lighting.glsl). Flags are callouts beside the figure, joined to their region by a leader
+// line; selection is a neutral highlight.
 //
 // It renders on demand, not in a loop: one frame per interaction. Regions are picked by
 // ray-casting. Every region is also reachable by the list beside it, so nothing depends
@@ -87,8 +88,8 @@ void main() {
 }`;
 
 // Calibrated chalk lighting (display RGB, no extra gamma), a neutral selection tone and
-// Opaque; no Fresnel, specular or blue tint. Watch/Act status is drawn as crisp screen-space
-// badges over the canvas, hidden when the body itself occludes their anchor.
+// Opaque; no Fresnel, specular or blue tint. Watch/Act status is drawn as screen-space callouts
+// beside the figure; a leader goes dashed when the body itself occludes its anchor.
 const FRAG = /* glsl */ `
 precision highp float;
 uniform float uSel; uniform float uHover; uniform float uAll; uniform vec4 uFlag; uniform vec4 uAct;
@@ -106,11 +107,27 @@ void main() {
 
 export interface BodyLabel { id: Exclude<RegionId, 'whole'>; title: string; lines: string[]; flagged: boolean }
 
+/** One flagged region: a callout beside the figure that opens an explanation of what is flagged. */
+export interface Callout {
+  id: Exclude<RegionId, 'whole'>;
+  tone: 'watch' | 'act';
+  region: string;
+  /** Second line of the callout, e.g. the flagged measurement's name. */
+  short: string;
+  items: { key: string; name: string; value: string; summary: string; rule: string; action: string }[];
+}
+type Region4 = Callout['id'];
+/** Which side of the figure each region's callout sits on: neighbours alternate so lines never cross. */
+const SIDE: Record<Region4, 'left' | 'right'> = { head: 'right', chest: 'left', abdomen: 'right', limbs: 'left' };
+
 const START_ROTATION = 0;
 
-export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; act?: RegionId[]; onPick: (r: RegionId) => void; labels?: BodyLabel[]; height?: number | string; fallback: ReactNode; onFallback?: (failed: boolean) => void }) {
-  const { selected, flagged, act = [], onPick, labels = [], height = 520, fallback, onFallback } = props;
-  const badges = useRef<HTMLDivElement>(null);
+export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; act?: RegionId[]; onPick: (r: RegionId) => void; labels?: BodyLabel[]; callouts?: Callout[]; onItem?: (key: string) => void; height?: number | string; fallback: ReactNode; onFallback?: (failed: boolean) => void }) {
+  const { selected, flagged, act = [], onPick, labels = [], callouts = [], onItem, height = 520, fallback, onFallback } = props;
+  const layer = useRef<HTMLDivElement>(null);
+  const calloutLines = useRef<SVGSVGElement>(null);
+  const [open, setOpen] = useState<Region4 | null>(null);
+  const openCallout = callouts.find((c) => c.id === open) ?? null;
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const lines = useRef<SVGSVGElement>(null);
@@ -160,24 +177,56 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
     }
     const occl = new Raycaster();
     const w = new Vector3();
-    const placeBadges = () => {
-      const host = badges.current;
-      if (!host) return;
-      const box = el.getBoundingClientRect();
+    // Callouts sit in the gutters beside the figure, in anchor order, never overlapping.
+    // Each leader runs from its callout to a dot on the region's surface.
+    const placeCallouts = () => {
+      const host = layer.current, svg = calloutLines.current;
+      if (!host || !svg) return;
+      const W = el.clientWidth, H = el.clientHeight;
       mesh.updateMatrixWorld();
-      host.querySelectorAll<HTMLElement>('[data-badge]').forEach((b) => {
-        const p = anchor[b.dataset.badge!];
-        w.copy(p).applyMatrix4(mesh.matrixWorld);
-        // Hidden when another part of the body is in front of the anchor.
+      const placed: { id: Region4; b: HTMLElement; x: number; y: number; visible: boolean }[] = [];
+      host.querySelectorAll<HTMLElement>('[data-callout]').forEach((b) => {
+        const id = b.dataset.callout as Region4;
+        w.copy(anchor[id]).applyMatrix4(mesh.matrixWorld);
         const dir = w.clone().sub(camera.position);
         const dist = dir.length();
         occl.set(camera.position, dir.normalize());
         const first = occl.intersectObject(mesh, false)[0];
-        const visible = !first || first.distance > dist - 0.012;
         v.copy(w).project(camera);
-        b.style.transform = `translate(${(v.x * 0.5 + 0.5) * box.width - 10}px, ${(-v.y * 0.5 + 0.5) * box.height - 10}px)`;
-        b.style.visibility = visible ? 'visible' : 'hidden';
+        placed.push({ id, b, x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H, visible: !first || first.distance > dist - 0.012 });
       });
+      const tops: Partial<Record<Region4, number>> = {};
+      for (const side of ['left', 'right'] as const) {
+        let floor = 4;
+        for (const p of placed.filter((q) => SIDE[q.id] === side).sort((a, b) => a.y - b.y)) {
+          const h = p.b.offsetHeight;
+          const top = Math.max(floor, Math.min(p.y - h / 2, H - h - 4));
+          p.b.style.top = `${top}px`;
+          tops[p.id] = top;
+          floor = top + h + 8;
+        }
+      }
+      for (const p of placed) {
+        const line = svg.querySelector<SVGPolylineElement>(`polyline[data-callout="${p.id}"]`);
+        const dot = svg.querySelector<SVGCircleElement>(`circle[data-callout="${p.id}"]`);
+        const left = SIDE[p.id] === 'left';
+        const sx = left ? p.b.offsetLeft + p.b.offsetWidth : p.b.offsetLeft;
+        const sy = tops[p.id]! + p.b.offsetHeight / 2;
+        const ex = left ? Math.min(sx + 14, p.x) : Math.max(sx - 14, p.x);
+        line?.setAttribute('points', `${sx},${sy} ${ex},${sy} ${p.x},${p.y}`);
+        line?.classList.toggle('hidden', !p.visible);
+        dot?.setAttribute('cx', String(p.x)); dot?.setAttribute('cy', String(p.y));
+        dot?.style.setProperty('visibility', p.visible ? 'visible' : 'hidden');
+      }
+      // The explanation opens under its callout, or above it when there is no room below.
+      const pop = host.querySelector<HTMLElement>('[data-pop]');
+      const owner = pop && placed.find((p) => p.id === pop.dataset.pop);
+      if (pop && owner) {
+        const bt = tops[owner.id]!, bh = owner.b.offsetHeight, ph = pop.offsetHeight;
+        let top = bt + bh + 8;
+        if (top + ph > H && bt - ph - 8 >= 0) top = bt - ph - 8;
+        pop.style.top = `${Math.max(0, Math.min(top, Math.max(0, H - ph)))}px`;
+      }
     };
     const drawLeaders = () => {
       const svg = lines.current;
@@ -206,7 +255,7 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
       renderer.render(scene, camera);
       if (broken) { setFailed(true); return; }
       drawLeaders();
-      placeBadges();
+      placeCallouts();
     };
     const resize = () => {
       const w = el.clientWidth, h = el.clientHeight;
@@ -294,8 +343,27 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
   }, [selected, flagged, act, labels, failed]);
 
   useEffect(() => { onFallback?.(failed); }, [failed, onFallback]);
-  // Badges are re-placed after React renders the set of flagged regions.
-  useEffect(() => { api.current?.render(); }, [flagged, act]);
+  // Callouts are re-placed after React renders them or opens an explanation.
+  useEffect(() => { api.current?.render(); }, [flagged, act, callouts, open]);
+  // An explanation whose region is no longer flagged closes.
+  useEffect(() => { if (open && !openCallout) setOpen(null); }, [open, openCallout]);
+  // Escape or a tap outside closes the explanation; focus returns to its callout.
+  useEffect(() => {
+    if (!open) return;
+    const close = (refocus: boolean) => {
+      setOpen(null);
+      if (refocus) layer.current?.querySelector<HTMLElement>(`[data-callout="${open}"]`)?.focus();
+    };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(true); };
+    const down = (e: PointerEvent) => {
+      const t = e.target as Element;
+      if (!t.closest('[data-pop]') && !t.closest('[data-callout]')) close(false);
+    };
+    document.addEventListener('keydown', key);
+    document.addEventListener('pointerdown', down);
+    layer.current?.querySelector<HTMLElement>('[data-pop] h3')?.focus();
+    return () => { document.removeEventListener('keydown', key); document.removeEventListener('pointerdown', down); };
+  }, [open]);
 
   if (failed) return <>{fallback}</>;
   return (
@@ -311,10 +379,38 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
           {l.lines.map((t) => <span key={t}>{t}</span>)}
         </button>
       ))}
-      <div ref={badges} className="badges" aria-hidden="true">
-        {(['head', 'chest', 'abdomen', 'limbs'] as const).filter((r) => flagged.includes(r)).map((r) => (
-          <span key={r} data-badge={r} className={`badge ${act.includes(r) ? 'act' : 'watch'}`}>{act.includes(r) ? Icon.act : Icon.watch}</span>
-        ))}
+      <svg ref={calloutLines} className="callout-lines" aria-hidden="true">
+        {callouts.map((c) => <polyline key={c.id} data-callout={c.id} className={c.tone} />)}
+        {callouts.map((c) => <circle key={c.id} data-callout={c.id} r="4" className={c.tone} />)}
+      </svg>
+      <div ref={layer} className="callouts">
+        {callouts.map((c) => {
+          const word = c.tone === 'act' ? 'Act' : 'Watch';
+          return (
+            <button key={c.id} type="button" data-callout={c.id} className={`callout ${c.tone} ${SIDE[c.id]}${open === c.id ? ' open' : ''}`}
+              aria-expanded={open === c.id} aria-controls={`pop-${c.id}`} aria-label={`${word} · ${c.region}: ${c.short}. What is flagged`}
+              onClick={() => { setOpen(open === c.id ? null : c.id); if (open !== c.id) onPick(c.id); }}>
+              <span className="cw">{c.tone === 'act' ? Icon.act : Icon.watch}{word}</span>
+              <span className="cs">{c.short}</span>
+            </button>
+          );
+        })}
+        {openCallout && (
+          <section id={`pop-${openCallout.id}`} data-pop={openCallout.id} className={`callout-pop ${openCallout.tone} ${SIDE[openCallout.id]}`} aria-labelledby={`pop-h-${openCallout.id}`}>
+            <div className="cp-head">
+              <h3 id={`pop-h-${openCallout.id}`} tabIndex={-1}>{openCallout.tone === 'act' ? Icon.act : Icon.watch}{openCallout.tone === 'act' ? 'Act' : 'Watch'} · {openCallout.region}</h3>
+              <button type="button" className="cp-close" aria-label="Close explanation" onClick={() => { setOpen(null); layer.current?.querySelector<HTMLElement>(`[data-callout="${openCallout.id}"]`)?.focus(); }}>×</button>
+            </div>
+            {openCallout.items.map((it) => (
+              <div key={it.key} className="cp-item">
+                <p className="cp-name"><b>{it.name}</b><span>{it.value}</span></p>
+                <p className="cp-sum">{it.summary}</p>
+                <p className="cp-rule">{it.rule}</p>
+                {onItem && <button type="button" className="linkish cp-go" onClick={() => onItem(it.key)}>{it.action} →</button>}
+              </div>
+            ))}
+          </section>
+        )}
       </div>
       <div className="turn">
         <button type="button" className="btn small" aria-label="Rotate the figure left" onClick={() => api.current?.rotate(-0.5)}>⟲</button>

@@ -4,7 +4,7 @@ import { INDICATORS } from '../domain/rules';
 import { age, clock, sameDay } from '../domain/time';
 import type { IndicatorId, RegionId } from '../domain/types';
 import { useApp } from '../state/store';
-import { Body3D } from '../ui/Body3D';
+import { Body3D, type Callout } from '../ui/Body3D';
 import { Btn, Icon, plain, provLabel } from '../ui/primitives';
 import { Field, tempError } from './Measurements';
 import { Foot, chipWord, useNav } from '../ui/shared';
@@ -71,6 +71,20 @@ export function BodyMap({ region }: { region?: RegionId }) {
   const here = symptoms.filter((s) => s.region === sel && sameDay(s.at, now));
   const ids = inRegion(sel);
   const actRegions = ORDER.filter((r) => inRegion(r).some((i) => ev.statuses[i].status === 'act'));
+  const valueText = (i: IndicatorId): string => {
+    if (i === 'alertness') return ev.sessionToday ? `${ev.sessionToday.z >= 0 ? '+' : '−'}${Math.abs(ev.sessionToday.z).toFixed(1)} demo SD · ${clock(ev.sessionToday.at)}` : 'Not tested today';
+    const l = ev.statuses[i].latest;
+    return l ? `${plain(l)} · ${sameDay(l.at, now) ? clock(l.at) : age(l.at, now)}` : 'No reading';
+  };
+  // One callout per flagged region beside the 3D figure; it opens what is flagged and why.
+  const callouts: Callout[] = (['head', 'chest', 'abdomen', 'limbs'] as const).filter((r) => flagged.includes(r)).map((r) => {
+    const hit = inRegion(r).filter((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act');
+    return {
+      id: r, tone: hit.some((i) => ev.statuses[i].status === 'act') ? 'act' : 'watch', region: REGIONS[r].name,
+      short: hit.length > 1 ? `${hit.length} measurements` : INFO[hit[0]].name,
+      items: hit.map((i) => ({ key: i, name: INFO[i].name, value: valueText(i), summary: ev.statuses[i].summary, rule: ev.statuses[i].rule, action: `Open ${INFO[i].name.toLowerCase()}` })),
+    };
+  });
   return (
     <>
       <section className="mhead">
@@ -81,7 +95,7 @@ export function BodyMap({ region }: { region?: RegionId }) {
         <div className="main-col bm-main">
           {/* Model slot: corrected 3D model B; the 2D figure takes over if WebGL or the shader fails. */}
           <div className="bm-figure">
-            <div className="bm-slot" id="bm-figure"><Body3D selected={sel} flagged={flagged} act={actRegions} onPick={setSel} height="100%" onFallback={setFlat} fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} /></div>
+            <div className="bm-slot" id="bm-figure"><Body3D selected={sel} flagged={flagged} act={actRegions} onPick={setSel} callouts={callouts} onItem={(k) => go({ view: 'indicator', id: k as IndicatorId })} height="100%" onFallback={setFlat} fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} /></div>
             <button type="button" className="bm-jump" onClick={() => jumpTo('bm-detail')}>View {info.name} details ↓</button>
             {flagged.includes('whole') && <p className="bm-whole">Whole body · {regionState(inRegion('whole'), ev, now).text}</p>}
             <p className="bm-key" aria-hidden="true"><span><i className={`k sel${flat ? ' flat' : ''}`} />Selected region</span>{flat ? <><span><i className="k watch" />Watch</span><span><i className="k act" />Act</span></> : <><span className="kb watch">{Icon.watch}Watch</span><span className="kb act">{Icon.act}Act</span></>}</p>

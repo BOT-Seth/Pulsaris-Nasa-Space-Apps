@@ -695,12 +695,7 @@ legend .hint.block { margin-left: 0; }
 /* 2D fallback uses the same selection tone as the key. */
 .bm-slot .figure .part.sel > * { fill: #a7a6a1; }
 
-/* ---------- Body map 3D: screen-space status badges ---------- */
-.badges { position: absolute; inset: 0; pointer-events: none; }
-.badge { position: absolute; left: 0; top: 0; width: 20px; height: 20px; display: grid; place-items: center; background: var(--bg); border: 1.5px solid currentColor; border-radius: 3px; }
-.badge svg { width: 14px; height: 14px; }
-.badge.watch { color: var(--watch-text); }
-.badge.act { color: var(--act-text); }
+/* ---------- Body map key icons ---------- */
 .bm-key .kb { display: inline-flex; align-items: center; gap: 6px; }
 .bm-key .kb svg { width: 14px; height: 14px; }
 .bm-key .kb.watch { color: var(--watch-text); }
@@ -796,3 +791,53 @@ legend .hint.block { margin-left: 0; }
 
 /* ---------- Header: top row inverted (white on obsidian); tabs stay light. Tokens are re-scoped so every bar rule follows. ---------- */
 .bar { --bg: #141517; --ink: #ffffff; --ink-2: #b4b8bd; --hairline: #3a3d42; background: var(--bg); color: var(--ink); }
+
+/* ---------- Body map callouts: flags beside the figure, leader to the region, tap for the explanation ---------- */
+.callout-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.callout-lines polyline { fill: none; stroke-width: 1.5; }
+.callout-lines polyline.hidden { stroke-dasharray: 3 3; opacity: 0.6; }
+.callout-lines .watch { stroke: var(--watch); }
+.callout-lines .act { stroke: var(--act); }
+.callout-lines circle { stroke: var(--bg); stroke-width: 2; }
+.callout-lines circle.watch { fill: var(--watch); }
+.callout-lines circle.act { fill: var(--act); }
+.callouts { position: absolute; inset: 0; pointer-events: none; }
+.callout { position: absolute; top: 0; max-width: 128px; min-height: 44px; display: grid; gap: 0; align-content: center; text-align: left; padding: 5px 10px; background: var(--bg); border: 1.5px solid currentColor; border-radius: var(--r); cursor: pointer; pointer-events: auto; }
+.callout.left { left: 0; }
+.callout.right { right: 0; }
+.callout.watch { color: var(--watch-text); }
+.callout.act { color: var(--act-text); }
+.callout.open.watch { background: var(--watch-soft); }
+.callout.open.act { background: var(--act-soft); }
+.callout .cw { display: inline-flex; align-items: center; gap: 6px; font: 600 14px/18px var(--sans); }
+.callout .cw svg { width: 16px; height: 16px; flex: none; }
+.callout .cs { font: 500 13px/17px var(--sans); color: var(--ink); }
+.callout-pop { position: absolute; top: 0; width: min(100%, 340px); max-height: 100%; overflow-y: auto; z-index: 3; pointer-events: auto; background: var(--bg); border: 1px solid var(--control); border-top: 4px solid currentColor; border-radius: var(--r); padding: 4px 16px 12px; }
+.callout-pop.left { left: 0; }
+.callout-pop.right { right: 0; }
+.callout-pop.watch { color: var(--watch-text); }
+.callout-pop.act { color: var(--act-text); }
+.cp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cp-head h3 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font: 600 16px/22px var(--sans); }
+.cp-head h3 svg { width: 18px; height: 18px; flex: none; }
+.cp-head h3:focus { outline: none; }
+.cp-close { min-width: 44px; min-height: 44px; margin-right: -12px; background: none; border: 0; font: 400 24px/1 var(--sans); color: var(--ink-2); cursor: pointer; }
+.cp-item { display: grid; gap: 4px; padding-top: 8px; color: var(--ink); }
+.cp-item + .cp-item { border-top: var(--line); margin-top: 8px; }
+.cp-name { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; margin: 0; font: 600 15px/20px var(--sans); }
+.cp-name span { font: 500 14px/20px var(--mono); }
+.cp-sum { margin: 0; font: 400 15px/21px var(--sans); }
+.cp-rule { margin: 0; font: 400 13px/18px var(--sans); color: var(--ink-2); }
+.cp-go { justify-self: start; font: 600 15px/20px var(--sans); }
+@container (max-width: 719px) {
+  .callout { max-width: 96px; padding: 4px 8px; }
+  .callout .cs { font-size: 12px; line-height: 16px; }
+}
+/* Narrow figure slots (tablet's 250 px column): the callout keeps only its icon so it stays clear of the body. */
+.bm-slot > .body3d { container-type: inline-size; }
+@container (max-width: 299px) {
+  .callout { width: 44px; height: 44px; padding: 0; place-items: center; }
+  .callout .cw { font-size: 0; gap: 0; }
+  .callout .cw svg { width: 20px; height: 20px; }
+  .callout .cs { display: none; }
+}
