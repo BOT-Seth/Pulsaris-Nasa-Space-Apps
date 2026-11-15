@@ -1,123 +1,136 @@
-// Today: one decision, its evidence, and nothing that competes with it.
-// Reading order is fixed: status → reason → action → evidence. Built to fit one
-// 1180 × 820 tablet viewport: decision area, a three-cell evidence strip, one link row.
+// Today: one scoped decision, the readings behind it, and nothing that competes with it.
+// Reading order is fixed: status → headline → reason → action → evidence.
+// Geometry at 1180 × 820: header 0–100, decision 100–452, evidence 452–708,
+// "All measurements" 708–764, prototype line 764–820. One left edge at x = 24.
 
 import { useState, type ReactNode } from 'react';
-import { INFO } from '../domain/content';
-import { FEVER_C, INDICATORS, WEEKLY, latest, series } from '../domain/rules';
-import { age, clock, duration, missionDay, sameDay } from '../domain/time';
+import { INFO, KSS } from '../domain/content';
+import { FEVER_C, INDICATORS, WEEKLY, latest } from '../domain/rules';
+import { age, clock, sameDay } from '../domain/time';
 import type { IndicatorId, Issue } from '../domain/types';
 import { useApp } from '../state/store';
-import { BaselineTrack, Btn, BuildingTrack, Chip, Icon, Prov, SleepTrack, Value, plain, provLabel } from '../ui/primitives';
+import { Btn, Chip, Icon, Prov, Value, plain, provLabel } from '../ui/primitives';
 import { FlagLine, Foot, chipWord, useNav } from '../ui/shared';
 
-/* ---------- Status mark: only for real judgments ---------- */
+type MarkKind = 'ok' | 'watch' | 'act' | 'task' | 'clear';
 
-export function Mark({ kind, scope, large }: { kind: 'ok' | 'watch' | 'act' | 'task'; scope: string; large?: boolean }) {
-  const word = kind === 'task' ? 'Task due' : kind === 'ok' ? 'OK' : kind === 'watch' ? 'Watch' : 'Act';
-  const icon = kind === 'task' ? Icon.due : Icon[kind];
+/** Status line. Color only for Watch and Act; "No flags" and "Assessment incomplete" stay neutral. */
+export function Mark({ kind, scope, large }: { kind: MarkKind; scope?: string; large?: boolean }) {
+  const word = { ok: 'OK', watch: 'Watch', act: 'Act', task: 'Assessment incomplete', clear: 'No flags' }[kind];
+  const icon = kind === 'task' ? Icon.due : kind === 'clear' ? Icon.ok : Icon[kind];
   return (
     <p className={`mark ${kind}${large ? ' lg' : ''}`}>
-      {icon}<b>{word}</b><span className="scope">{scope}</span>
+      {icon}<b>{word}</b>{scope && <span className="scope">{scope}</span>}
     </p>
   );
 }
 
-/** Reminder times stay behind one secondary control, so the decision has a single primary action. */
-function Remind({ label, minutes, onPick }: { label: string; minutes: number[]; onPick: (m: number) => void }) {
+/** Reminder times behind one secondary control, so the decision keeps a single primary action. */
+function Remind({ onPick }: { onPick: (m: number) => void }) {
   const { now } = useApp();
   const [open, setOpen] = useState(false);
-  if (!open) return <Btn onClick={() => setOpen(true)}>{label}</Btn>;
+  if (!open) return <Btn onClick={() => setOpen(true)}>Remind me…</Btn>;
   return (
-    <span className="remind" role="group" aria-label={label}>
-      {minutes.map((m) => <Btn key={m} small onClick={() => { onPick(m); setOpen(false); }}>{clock(now + m)} · in {m} min</Btn>)}
+    <span className="remind" role="group" aria-label="Remind me">
+      {[15, 30, 60].map((m) => <Btn key={m} small onClick={() => { onPick(m); setOpen(false); }}>{clock(now + m)} · in {m} min</Btn>)}
       <Btn small variant="quiet" onClick={() => setOpen(false)}>Cancel</Btn>
     </span>
   );
 }
 
 interface Decision {
-  kind: 'ok' | 'watch' | 'act' | 'task';
-  scope: string;
+  kind: MarkKind;
+  scope?: string;
   headline: ReactNode;
+  countdown?: string;
   reason: ReactNode;
-  limit?: ReactNode;
   actions?: ReactNode;
+  note?: ReactNode;
+  /** Qualifies the interpretation where it appears. */
+  rule?: string;
 }
+
+const DEMO_RULE = 'Demo rule · not clinically validated';
 
 function useDecision(issue: Issue | undefined): Decision {
   const app = useApp();
   const { go } = useNav();
   const { now, ev, draft, deferUntil, recheckAt, readings, flag } = app;
   const sess = ev.sessionToday;
-  const inMin = (t: number) => Math.max(1, Math.ceil(t - now));
+  const inMin = (t: number) => `In ${Math.max(1, Math.ceil(t - now))} min`;
+  const simulated = sess?.provenance === 'synthetic';
+  const resultWord = sess ? `${simulated ? 'simulated' : 'measured'} ${clock(sess.at)} result` : 'last result';
+  const review = flag
+    ? null
+    : <span className="review"><Btn onClick={() => go({ view: 'flag' })}>Mark for medical review</Btn><span className="sm muted">Saves a local flag; no notification is sent.</span></span>;
 
   if (!issue) {
-    const covered = INDICATORS.filter((i) => ev.statuses[i].status === 'ok').map((i) => INFO[i].short);
-    const open = INDICATORS.filter((i) => !['ok', 'watch', 'act'].includes(ev.statuses[i].status)).map((i) => INFO[i].short);
     return {
-      kind: 'ok', scope: 'Today’s data',
-      headline: 'No action needed',
-      reason: 'No rule was triggered by today’s readings.',
-      limit: <>Assessed: {covered.join(', ') || 'nothing yet'}. Not assessed or not current: {open.join(', ') || 'nothing'}.</>,
-      actions: <Btn onClick={() => go({ view: 'check' })}>Run a pre-task alertness check</Btn>,
+      kind: 'clear', scope: 'Available readings',
+      headline: 'Nothing needs follow-up from these readings',
+      reason: <>No demo rule was triggered.{sess ? '' : ' Alertness has not been tested.'}</>,
     };
   }
 
   switch (issue.id) {
     case 'checkin': {
       const answered = [draft.mood, draft.kss, draft.sleep].filter((v) => v !== null).length;
+      const noNight = !readings.some((r) => r.indicator === 'sleep' && r.provenance === 'recorded' && sameDay(r.at, now));
       return {
-        kind: 'task', scope: 'Daily routine',
-        headline: answered ? 'Finish your check-in' : 'Start your daily check-in',
-        reason: 'A few taps, under a minute. Today’s assessment needs your sleepiness and mood.',
-        limit: answered ? `Draft kept: ${answered} answered.` : 'Until then, alertness and mood are not assessed.',
+        kind: 'task',
+        headline: answered ? 'Finish your daily check-in' : 'Start your daily check-in',
+        reason: noNight
+          ? 'No overnight recording. Complete your check-in; sleep, HRV and sleeping heart rate remain unavailable.'
+          : 'Report today’s sleepiness and mood. Takes under a minute.',
         actions: <Btn variant="primary" onClick={() => go({ view: 'checkin' })}>{answered ? 'Resume check-in' : 'Start check-in'}</Btn>,
+        note: answered ? `Draft kept: ${answered} of 3 answered.` : undefined,
       };
     }
     case 'alertness-check': {
-      const invalid = app.sessions.filter((s) => sameDay(s.at, now)).slice(-1)[0];
       const deferred = deferUntil !== null && now < deferUntil;
+      const failed = app.sessions.filter((s) => sameDay(s.at, now)).slice(-1)[0];
       return {
         kind: 'watch', scope: 'Alertness',
-        headline: deferred ? <>Check your alertness at <span className="num">{clock(deferUntil!)}</span></> : 'Check your alertness',
+        headline: deferred ? `Check your alertness at ${clock(deferUntil!)}` : 'Check your alertness',
+        countdown: deferred ? inMin(deferUntil!) : undefined,
         reason: issue.why,
-        limit: <>{invalid && !invalid.valid ? `The ${clock(invalid.at)} attempt was not scored. ` : ''}Current alertness: not assessed. The test takes 3 minutes.</>,
         actions: (
           <>
             <Btn variant="primary" onClick={() => go({ view: 'check' })}>Start 3-min alertness check</Btn>
-            {deferred
-              ? <Btn variant="quiet" onClick={() => app.setDefer(null)}>Cancel reminder</Btn>
-              : <Remind label="Remind me…" minutes={[15, 30, 60]} onPick={app.setDefer} />}
+            {deferred ? <Btn variant="quiet" onClick={() => app.setDefer(null)}>Cancel reminder</Btn> : <Remind onPick={app.setDefer} />}
           </>
         ),
+        note: failed && !failed.valid ? `The ${clock(failed.at)} attempt was not scored.` : undefined,
+        rule: DEMO_RULE,
       };
     }
     case 'alertness-result': {
       const act = issue.level === 'act';
       return {
-        kind: act ? 'act' : 'watch', scope: 'Alertness',
-        headline: act ? 'Rest now if your schedule allows' : 'Take a short movement break',
-        reason: sess ? <>The <span className="num">{clock(sess.at)}</span> check was {Math.abs(sess.z).toFixed(1)} SD slower than the NASA ISS pre-flight reference, with {sess.lapses} lapse{sess.lapses === 1 ? '' : 's'}.</> : issue.why,
-        limit: 'A screening result, not a fitness-for-duty decision. The steps are illustrative and not medically reviewed.',
-        actions: <Btn variant="primary" onClick={() => sess && go({ view: 'result', id: sess.id })}>Open the steps</Btn>,
+        kind: act ? 'act' : 'watch', scope: simulated ? 'Alertness · Simulated result' : 'Alertness',
+        headline: act ? 'Review the suggested rest' : 'Review the suggested movement break',
+        reason: <>The {resultWord} is slower than the study reference.</>,
+        actions: <>
+          <Btn variant="primary" onClick={() => sess && go({ view: 'result', id: sess.id })}>{act ? 'View rest steps' : 'View movement-break steps'}</Btn>
+          {act && review}
+        </>,
+        rule: DEMO_RULE,
       };
     }
     case 'alertness-followup': {
       const action = app.actions.filter((a) => a.issue === 'alertness-result').slice(-1)[0];
       const due = recheckAt !== null && now >= recheckAt;
       return {
-        kind: issue.level === 'act' ? 'act' : 'watch', scope: 'Alertness',
-        headline: recheckAt === null ? 'Choose a re-check time'
-          : due ? 'Re-check your alertness now'
-            : <>Re-check at <span className="num">{clock(recheckAt)}</span> <span className="soft">in {inMin(recheckAt)} min</span></>,
-        reason: <>{issue.why}{action ? <> {action.text.charAt(0).toUpperCase() + action.text.slice(1)} Recorded <span className="num">{clock(action.at)}</span>.</> : null}</>,
-        limit: 'The re-check gives new evidence on alertness. Until then the concern stays open.',
+        kind: issue.level === 'act' ? 'act' : 'watch', scope: simulated ? 'Alertness · Simulated result' : 'Alertness',
+        headline: recheckAt === null ? 'Choose a re-check time' : due ? 'Re-check your alertness now' : `Re-check at ${clock(recheckAt)}`,
+        countdown: recheckAt !== null && !due ? inMin(recheckAt) : undefined,
+        reason: <>The {resultWord} was slower than the study reference.{action ? <> {action.text.replace(/\.$/, '')} recorded at <span className="num">{clock(action.at)}</span>.</> : null}</>,
         actions: recheckAt === null
-          ? <><Btn variant="primary" onClick={() => app.setRecheck(30)}>Re-check at {clock(now + 30)} · in 30 min</Btn><Btn onClick={() => app.setRecheck(60)}>At {clock(now + 60)}</Btn></>
+          ? <><Btn variant="primary" onClick={() => app.setRecheck(30)}>Re-check at {clock(now + 30)}</Btn><Btn onClick={() => app.setRecheck(60)}>At {clock(now + 60)}</Btn></>
           : due
             ? <Btn variant="primary" onClick={() => go({ view: 'check' })}>Start re-check</Btn>
             : <Btn variant="quiet" onClick={() => app.setRecheck(null)}>Change time</Btn>,
+        rule: DEMO_RULE,
       };
     }
     case 'temperature': {
@@ -126,24 +139,22 @@ function useDecision(issue: Issue | undefined): Decision {
       const due = now >= dueAt;
       return {
         kind: 'watch', scope: 'Temperature',
-        headline: due ? 'Re-check your temperature now' : <>Re-check temperature at <span className="num">{clock(dueAt)}</span> <span className="soft">in {inMin(dueAt)} min</span></>,
-        reason: <><span className="num">{t.value.toFixed(1)} °C</span> at <span className="num">{clock(t.at)}</span> is at or above {FEVER_C.toFixed(1)} °C, the Earth clinical definition of fever.</>,
-        limit: 'One reading. Not a diagnosis. If it holds on the re-check, flag the crew medical officer.',
-        actions: due
-          ? <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'temp' })}>Log temperature</Btn>
-          : !flag ? <Btn onClick={() => go({ view: 'flag' })}>Flag crew medical officer now</Btn> : null,
+        headline: due ? 'Re-check your temperature now' : `Re-check temperature at ${clock(dueAt)}`,
+        countdown: due ? undefined : inMin(dueAt),
+        reason: <>Temperature entered: <span className="num">{t.value.toFixed(1)} °C</span> at <span className="num">{clock(t.at)}</span>. At or above this demo’s {FEVER_C.toFixed(1)} °C threshold.</>,
+        actions: <>{due && <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'temp' })}>Log temperature</Btn>}{review}</>,
+        rule: 'Demo threshold · not clinically validated',
       };
     }
     case 'blood-sugar': {
       const confirmed = issue.title.includes('twice');
       return {
         kind: 'watch', scope: 'Blood sugar',
-        headline: confirmed ? 'Flag the crew medical officer' : 'Re-check your blood sugar',
+        headline: confirmed ? 'Mark both readings for medical review' : 'Re-check your blood sugar',
         reason: issue.why,
-        limit: confirmed ? 'Two fasting readings agree. Not a diagnosis.' : 'Single readings swing widely, so one re-check comes before any alert.',
-        actions: confirmed
-          ? (flag ? <p className="sm"><FlagLine /></p> : <Btn variant="primary" onClick={() => go({ view: 'flag' })}>Flag crew medical officer</Btn>)
-          : <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Log blood sugar</Btn>,
+        actions: confirmed ? review : <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Log blood sugar</Btn>,
+        note: confirmed ? undefined : 'Single readings vary, so one re-check comes before any flag.',
+        rule: 'Earth fasting lab range · applied as a demo rule',
       };
     }
     case 'heart-rate':
@@ -151,33 +162,48 @@ function useDecision(issue: Issue | undefined): Decision {
         kind: 'watch', scope: 'Heart rate',
         headline: 'Log blood pressure and blood sugar',
         reason: issue.why,
-        limit: issue.state,
         actions: <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Log readings</Btn>,
+        rule: DEMO_RULE,
       };
     case 'bp-due':
     default:
       return {
-        kind: 'task', scope: 'Weekly routine',
+        kind: 'task',
         headline: 'Log blood pressure and blood sugar',
-        reason: issue.why,
-        limit: 'About 30 seconds.',
+        reason: 'Weekly entry. About 30 seconds.',
         actions: <Btn variant="primary" onClick={() => go({ view: 'entry', kind: 'bp' })}>Log readings</Btn>,
       };
   }
 }
 
-/* ---------- Evidence strip ---------- */
+/* ---------- Evidence: what each reading says, in words ---------- */
+
+function explain(id: IndicatorId, app: ReturnType<typeof useApp>): string {
+  const s = app.ev.statuses[id];
+  const r = s.latest!;
+  if (r.quality?.usable === false) return r.quality.note;
+  if (id === 'sleepiness') return `“${KSS[r.value]}.”`;
+  if (id === 'hrv' || id === 'heartRate') {
+    if (!s.baseline) return s.baselineNeeded !== undefined ? '' : s.summary;
+    const b = s.baseline;
+    const where = r.value < b.low ? 'Below range' : r.value > b.high ? 'Above range' : 'Within range';
+    const pct = s.summary.match(/(\d+) %/);
+    return `${where}${s.status === 'watch' && pct ? ` · ${pct[1]} % below ${b.synthetic ? 'demo' : 'your'} mean` : ''}`;
+  }
+  return s.summary;
+}
 
 function Cell({ id }: { id: IndicatorId }) {
-  const { ev, now, disputed } = useApp();
+  const app = useApp();
+  const { ev, now } = app;
   const { go } = useNav();
   const s = ev.statuses[id];
   const info = INFO[id];
-  const judged = s.status === 'ok' || s.status === 'watch' || s.status === 'act';
+  const flagged = s.status === 'watch' || s.status === 'act';
   const head = (
     <span className="cell-head">
       <span className="label">{info.name}</span>
-      {judged ? <Chip kind={s.status} /> : null}
+      {flagged && <span className={`contrib ${s.status}`}>Flagged by demo rule</span>}
     </span>
   );
 
@@ -189,10 +215,10 @@ function Cell({ id }: { id: IndicatorId }) {
         {sess ? (
           <>
             <span className="big">{Math.abs(sess.z).toFixed(1)} <small>SD {sess.z >= 0 ? 'slower' : 'faster'}</small></span>
-            <span className="sm">than the NASA ISS pre-flight reference · {sess.lapses} lapse{sess.lapses === 1 ? '' : 's'}</span>
-            <span className="cellmeta"><span className="num">{clock(sess.at)}</span><Prov p={sess.provenance} /></span>
+            <span className="sm">Than the study reference · {sess.lapses} lapse{sess.lapses === 1 ? '' : 's'}</span>
+            <span className="cellmeta"><span className="num">{clock(sess.at)}</span><Prov p={sess.provenance} test /></span>
           </>
-        ) : <><span className="na">Not run today</span><span className="sm">Offered when a sign of fatigue appears.</span></>}
+        ) : <span className="na">Not tested today</span>}
       </button>
     );
   }
@@ -200,83 +226,85 @@ function Cell({ id }: { id: IndicatorId }) {
   const r = s.latest;
   const current = r && sameDay(r.at, now);
   const nightly = id === 'sleep' || id === 'hrv' || id === 'heartRate';
+  if (!current) {
+    return (
+      <button type="button" className="cell" onClick={() => go({ view: 'indicator', id })}>
+        {head}
+        <span className="na">{nightly ? 'No overnight recording' : 'Not entered today'}</span>
+      </button>
+    );
+  }
+  const b = s.baseline;
+  const range = b ? `${b.synthetic ? 'Demo range' : 'Your range'}: ${Math.round(b.low)}–${Math.round(b.high)} ${r.unit}` : null;
+  const text = explain(id, app);
   return (
     <button type="button" className="cell" onClick={() => go({ view: 'indicator', id })}>
       {head}
-      {current ? (
-        <>
-          <Value r={r} className="big" />
-          {id === 'sleep' && <SleepTrack minutes={r.value} off={disputed.includes(r.id)} concern={s.status === 'watch'} />}
-          {(id === 'hrv' || id === 'heartRate') && (s.baseline
-            ? <BaselineTrack value={r.value} baseline={s.baseline} unit={r.unit} />
-            : s.baselineNeeded !== undefined ? <BuildingTrack have={7 - s.baselineNeeded} /> : null)}
-          <span className={judged ? 'sm' : 'sm muted'}>{s.summary}</span>
-          <span className="cellmeta"><span className="num">{r.window ? `${clock(r.window.from)}–${clock(r.window.to)}` : clock(r.at)}</span><Prov p={r.provenance} /></span>
-        </>
-      ) : (
-        <>
-          <span className="na">{nightly ? 'No overnight recording' : chipWord(id, s) === 'Not today' ? 'Not entered today' : 'No reading'}</span>
-          {r && <span className="cellmeta">Last available: {plain(r)} · {age(r.at, now)} · {provLabel(r.provenance)}</span>}
-        </>
+      <Value r={r} className="big" />
+      {range && <span className="sm muted">{range}</span>}
+      {!b && s.baselineNeeded !== undefined && (
+        <span className="sm muted">Demo baseline: {7 - s.baselineNeeded} of 7 nights · no comparison yet</span>
       )}
+      {text && <span className="sm">{text}</span>}
+      <span className="cellmeta"><span className="num">{r.window ? `${clock(r.window.from)}–${clock(r.window.to)}` : clock(r.at)}</span><Prov p={r.provenance} /></span>
     </button>
   );
 }
 
-/* ---------- Side column: what is next, and support ---------- */
+/* ---------- Right rail: other open items, what is due, symptoms ---------- */
 
-function Side() {
+function Side({ heroId }: { heroId: Issue['id'] | undefined }) {
   const app = useApp();
   const { go } = useNav();
-  const { ev, now, readings, recheckAt, deferUntil, symptoms } = app;
+  const { ev, now, readings, recheckAt, symptoms } = app;
   const others = ev.issues.slice(1).filter((i) => i.level !== 'due');
+  const checkinDue = heroId !== 'checkin' && ev.issues.some((i) => i.id === 'checkin');
   const bp = latest(readings, 'bloodPressure');
-  const next: { what: string; when: string }[] = [];
-  if (recheckAt !== null) next.push({ what: 'Alertness re-check', when: now >= recheckAt ? 'Due now' : `${clock(recheckAt)} · in ${Math.ceil(recheckAt - now)} min` });
-  if (deferUntil !== null && recheckAt === null) next.push({ what: 'Alertness check', when: now >= deferUntil ? 'Due now' : `${clock(deferUntil)} · in ${Math.ceil(deferUntil - now)} min` });
-  const temp = latest(readings, 'temperature');
-  if (ev.issues.some((i) => i.id === 'temperature') && temp) next.push({ what: 'Temperature re-check', when: now >= temp.at + 30 ? 'Due now' : `${clock(temp.at + 30)} · in ${Math.ceil(temp.at + 30 - now)} min` });
-  if (ev.issues[0]?.id !== 'checkin' && ev.issues.some((i) => i.id === 'checkin')) next.push({ what: 'Daily check-in', when: 'Due now' });
-  if (!next.length) {
+  const later: { what: string; when: string }[] = [];
+  if (recheckAt !== null && heroId !== 'alertness-followup') later.push({ what: 'Alertness re-check', when: `${clock(recheckAt)} · in ${Math.max(1, Math.ceil(recheckAt - now))} min` });
+  if (heroId !== 'bp-due') {
     const days = bp ? Math.ceil((bp.at + WEEKLY - now) / 1440) : 0;
-    next.push({ what: 'Blood pressure + blood sugar', when: days <= 0 ? 'Due now' : `In ${days} d · weekly` });
+    later.push({ what: 'Blood pressure + blood sugar', when: days <= 0 ? 'Due' : `In ${days} d · weekly` });
   }
   const todays = symptoms.filter((s) => sameDay(s.at, now));
   return (
     <aside className="side">
       {others.length > 0 && (
         <section className="panel stack-sm">
-          <h2>Also open</h2>
-          <ul className="rows">
-            {others.map((i) => (
-              <li key={i.id}>
-                <Mark kind={i.level === 'act' ? 'act' : 'watch'} scope={i.title} />
-                <p className="sm muted">{i.why}</p>
-              </li>
-            ))}
-          </ul>
+          <h2 className="rail-h">Also open</h2>
+          <ul className="rows">{others.map((i) => <li key={i.id}><Mark kind={i.level === 'act' ? 'act' : 'watch'} scope={i.title} /></li>)}</ul>
+        </section>
+      )}
+      {checkinDue && (
+        <section className="panel stack-sm">
+          <h2 className="rail-h">Also due</h2>
+          <Btn onClick={() => go({ view: 'checkin' })}>Start check-in</Btn>
+        </section>
+      )}
+      {!heroId && (
+        <section className="panel stack-sm">
+          <h2 className="rail-h">Optional</h2>
+          <Btn onClick={() => go({ view: 'check' })}>Alertness check · 3 min</Btn>
+        </section>
+      )}
+      {later.length > 0 && (
+        <section className="panel stack-sm">
+          <h2 className="rail-h">Next scheduled</h2>
+          <ul className="rows quiet">{later.map((n) => <li key={n.what}><b>{n.what}</b><span className="sm muted num">{n.when}</span></li>)}</ul>
         </section>
       )}
       <section className="panel stack-sm">
-        <h2>Next</h2>
-        <ul className="rows">
-          {next.map((n) => <li key={n.what}><b>{n.what}</b><p className="sm muted num">{n.when}</p></li>)}
-        </ul>
-      </section>
-      <section className="panel stack-sm">
-        <h2>Symptoms and support</h2>
-        {todays.length
-          ? <ul className="rows">{todays.map((s) => <li key={s.id}><p>{s.list.join(', ')}{s.tempC !== undefined && <> · <span className="num">{s.tempC.toFixed(1)} °C</span></>}</p><p className="cap">Reported {clock(s.at)} · on this tablet</p></li>)}</ul>
-          : <p className="sm muted">Available any time, even when readings look ordinary.</p>}
-        <div className="row"><Btn onClick={() => go({ view: 'symptom' })}>Report a symptom</Btn></div>
-        <p className="sm"><FlagLine /></p>
+        <h2 className="rail-h">Symptoms</h2>
+        {todays.length > 0 && <ul className="rows quiet">{todays.map((s) => <li key={s.id}><b>{s.list.join(', ')}{s.tempC !== undefined ? ` · ${s.tempC.toFixed(1)} °C` : ''}</b><span className="sm muted">Reported {clock(s.at)}</span></li>)}</ul>}
+        <Btn onClick={() => go({ view: 'symptom' })}>Report a symptom</Btn>
+        <p className="sm muted"><FlagLine /></p>
       </section>
     </aside>
   );
 }
 
 export function Today() {
-  const { ev, now } = useApp();
+  const { ev } = useApp();
   const { go } = useNav();
   const issue = ev.issues[0];
   const d = useDecision(issue);
@@ -287,19 +315,22 @@ export function Today() {
         <div className="main-col">
           <section className={`decision ${d.kind}`} aria-labelledby="decision-h">
             <Mark kind={d.kind} scope={d.scope} large />
-            <h1 id="decision-h" tabIndex={-1}>{d.headline}</h1>
+            <div className="headblock">
+              <h1 id="decision-h" tabIndex={-1}>{d.headline}</h1>
+              {d.countdown && <p className="countdown">{d.countdown}</p>}
+            </div>
             <p className="reason">{d.reason}</p>
             {d.actions && <div className="row actions">{d.actions}</div>}
-            {d.limit && <p className="limit">{d.limit}</p>}
+            {(d.rule || d.note) && <p className="limit">{[d.note, d.rule].filter(Boolean).join(' · ')}</p>}
           </section>
-          <div className="strip" aria-label="Evidence" style={{ ['--cols' as string]: ids.length }}>
+          <div className="strip" aria-label="Readings behind this" style={{ ['--cols' as string]: ids.length }}>
             {ids.map((id) => <Cell key={id} id={id} />)}
           </div>
           <button type="button" className="allrow" onClick={() => go({ view: 'measurements' })}>
-            <span>All measurements</span><span className="sm muted">9 indicators · mission day {missionDay(now)} <span aria-hidden="true">→</span></span>
+            <span>All measurements</span><span aria-hidden="true">→</span>
           </button>
         </div>
-        <Side />
+        <Side heroId={issue?.id} />
       </div>
       <Foot />
     </>
@@ -308,7 +339,7 @@ export function Today() {
 
 /** All nine indicators, compact. Used on Measurements, not on Today. */
 export function Tiles() {
-  const { ev, readings, now } = useApp();
+  const { ev, now } = useApp();
   const { go } = useNav();
   return (
     <div className="tiles" aria-label="All indicators">
@@ -324,11 +355,10 @@ export function Tiles() {
             {sess ? <span className="val">{Math.abs(sess.z).toFixed(1)} <small>SD {sess.z >= 0 ? 'slower' : 'faster'}</small></span>
               : current ? <Value r={r} /> : <span className="val muted">—</span>}
             <span className="cap">
-              {sess ? <>{clock(sess.at)} · <Prov p={sess.provenance} /></>
+              {sess ? <>{clock(sess.at)} · <Prov p={sess.provenance} test /></>
                 : current ? <>{clock(r.at)} · <Prov p={r.provenance} /></>
                   : r ? <>Last: {plain(r)} · {age(r.at, now)} · {provLabel(r.provenance)}</> : 'No reading'}
             </span>
-            {id === 'sleep' && current && <span className="cap">{duration(r.value)} · {series(readings, 'sleep').length} nights on record</span>}
           </button>
         );
       })}

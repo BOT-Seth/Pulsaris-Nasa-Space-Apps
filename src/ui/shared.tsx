@@ -97,8 +97,8 @@ export function EvidenceRow({ id }: { id: IndicatorId }) {
 
 export function FlagLine() {
   const { flag } = useApp();
-  if (!flag) return <span className="muted">Nothing flagged. Records stay on this tablet.</span>;
-  return <>Flag saved on this tablet at <span className="num">{clock(flag.queuedAt)}</span>. No notification sent; this prototype cannot send.</>;
+  if (!flag) return <>No records marked for medical review.</>;
+  return <>Marked for medical review at <span className="num">{clock(flag.queuedAt)}</span>. Local only; no notification sent.</>;
 }
 
 /** The actions that belong to an issue. Task state (deferred, scheduled) lives here, apart from the health state. */

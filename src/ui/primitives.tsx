@@ -30,8 +30,8 @@ export function Btn(props: { children: ReactNode; onClick?: () => void; variant?
 const PROV: Record<Provenance, string> = { recorded: 'Earth dataset · MMASH', synthetic: 'Synthetic history', 'self-reported': 'Entered by you', 'measured-here': 'Measured on this tablet' };
 export const provLabel = (p: Provenance): string => PROV[p];
 /** Provenance tag. Synthetic gets a dashed outline as well as the word. */
-export function Prov({ p }: { p: Provenance }) {
-  return <span className={`prov ${p}`}>{PROV[p]}</span>;
+export function Prov({ p, test }: { p: Provenance; test?: boolean }) {
+  return <span className={`prov ${p}`}>{test && p === 'synthetic' ? 'Simulated test result' : PROV[p]}</span>;
 }
 
 /** A reading's value with its unit. Sleep is shown as hours and minutes. */

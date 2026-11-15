@@ -110,8 +110,8 @@ export function evaluate(input: RuleInput): Evaluation {
     shortSleep = sleep.value < SHORT_SLEEP_ALONE_MIN || (sleep.value < SHORT_SLEEP_COMBINED_MIN && (lowHrv || kssHigh));
     const pending = !shortSleep && sleep.value < SHORT_SLEEP_COMBINED_MIN && !today(kss);
     S.sleep = st('sleep', shortSleep ? 'watch' : pending ? 'info' : 'ok',
-      shortSleep ? (sleep.value < SHORT_SLEEP_ALONE_MIN ? 'Under 5 h.' : 'Under 6 h, with another sign of fatigue.')
-        : sleep.value < SHORT_SLEEP_COMBINED_MIN ? (today(kss) ? 'Under 6 h, with no other sign of fatigue.' : 'Under 6 h. Today’s sleepiness has not been entered yet.') : 'No short-sleep rule triggered.',
+      shortSleep ? (sleep.value < SHORT_SLEEP_ALONE_MIN ? 'Under 5 h.' : kssHigh ? 'Under 6 h, with reported sleepiness.' : 'Under 6 h, with low HRV.')
+        : sleep.value < SHORT_SLEEP_COMBINED_MIN ? (today(kss) ? 'Under 6 h, with no other sign of fatigue.' : 'Under 6 h; today’s sleepiness is not entered.') : 'No short-sleep demo rule triggered.',
       sleepRule, 'team-starting-point', sleep);
   }
 
@@ -175,7 +175,7 @@ export function evaluate(input: RuleInput): Evaluation {
   S.temperature = !temp
     ? st('temperature', 'none', 'Not measured. Asked when you report a symptom.', tempRule, 'clinical-reference', null)
     : !fresh(temp) ? st('temperature', 'info', 'Not a current reading.', tempRule, 'clinical-reference', temp)
-      : st('temperature', fever ? 'watch' : 'ok', fever ? `At or above ${FEVER_C.toFixed(1)} °C.` : `Below ${FEVER_C.toFixed(1)} °C.`, tempRule, 'clinical-reference', temp);
+      : st('temperature', fever ? 'watch' : 'ok', fever ? `At or above this demo’s ${FEVER_C.toFixed(1)} °C threshold.` : `Below ${FEVER_C.toFixed(1)} °C.`, tempRule, 'clinical-reference', temp);
 
   // ---- Triggers for an alertness check ----
   const triggers: string[] = [];
@@ -199,7 +199,7 @@ export function evaluate(input: RuleInput): Evaluation {
     issues.push({ id: 'alertness-check', level: 'watch', title: 'Alertness check recommended', why: triggers.join(' '), state: 'Current alertness: not assessed.', evidence: ['sleepiness', 'sleep', 'hrv'] });
   }
   if (fever && fresh(temp)) {
-    issues.push({ id: 'temperature', level: 'watch', title: `Temperature ${temp.value.toFixed(1)} °C`, why: `At or above ${FEVER_C.toFixed(1)} °C, the clinical definition of fever on Earth.`, state: 'One reading. Not a diagnosis. Re-check in 30 min and flag the crew medical officer if it holds.', evidence: ['temperature'] });
+    issues.push({ id: 'temperature', level: 'watch', title: `Temperature ${temp.value.toFixed(1)} °C`, why: `At or above this demo’s ${FEVER_C.toFixed(1)} °C threshold.`, state: 'One reading. Not a diagnosis. Re-check in 30 min and flag the crew medical officer if it holds.', evidence: ['temperature'] });
   }
   if (gluIssue && glu) {
     issues.push({ id: 'blood-sugar', level: 'watch', title: gluIssue === 'confirmed' ? 'Blood sugar outside range twice' : 'Re-check blood sugar once', why: `${glu.value} mg/dL is outside the fasting lab range of ${GLUCOSE_FASTING_RANGE.low}-${GLUCOSE_FASTING_RANGE.high} mg/dL.`, state: gluIssue === 'confirmed' ? 'Two readings agree. Flag the crew medical officer.' : 'Single readings swing widely. One re-check comes before any alert.', evidence: ['bloodSugar'] });
