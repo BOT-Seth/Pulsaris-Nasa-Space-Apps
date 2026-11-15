@@ -116,7 +116,7 @@ export const REGIONS: Record<RegionId, RegionInfo> = {
   chest: {
     name: 'Chest', system: 'Heart and circulation',
     fn: 'The heart moves blood and oxygen. Its rate and beat-to-beat variation reflect load and recovery.',
-    inSpace: 'Without gravity, fluid shifts toward the head. Heart rate and diastolic pressure run lower than on Earth.',
+    inSpace: 'Microgravity shifts fluid toward the head and changes cardiovascular regulation. A short-duration Shuttle study reported lower heart rate and diastolic pressure during flight.',
     sources: ['fritsch1996', 'hazards'],
   },
   abdomen: {
@@ -128,7 +128,7 @@ export const REGIONS: Record<RegionId, RegionInfo> = {
   limbs: {
     name: 'Arms and legs', system: 'Muscle and bone',
     fn: 'Weight-bearing bones and muscles carry and move the body.',
-    inSpace: 'Without loading, weight-bearing bones lose about 1 to 1.5 % of mineral density a month. Exercise is the countermeasure.',
+    inSpace: 'Reduced mechanical loading can lead to bone and muscle loss. Exercise is used as a countermeasure.',
     sources: ['hazards'],
   },
   whole: {

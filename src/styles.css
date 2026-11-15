@@ -661,3 +661,23 @@ legend .hint.block { margin-left: 0; }
 @container (min-width: 900px) { .bm-main { grid-template-rows: minmax(0, 1fr); height: 100%; } }
 .bm-slot .aura:not(.sel) rect { stroke: none; fill: none; }
 .bm-slot .aura.flag:not(.sel) rect { stroke: var(--watch); stroke-width: 2; stroke-dasharray: 6 4; fill: none; }
+
+/* ---------- Body map round 2 ---------- */
+.bm-src { grid-column: 1 / -1; font: 400 14px/20px var(--sans); color: var(--ink-2); }
+.bm-cite { font: 400 14px/20px var(--sans); }
+.bm-whole { font: 500 14px/20px var(--sans); color: var(--watch-text); text-align: center; }
+.bm-key { display: flex; flex-wrap: wrap; gap: 12px; font: 400 13px/18px var(--sans); color: var(--ink-2); }
+.bm-key .k { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
+.bm-key .k.sel { background: var(--ink); }
+.bm-key .k.watch { border: 2px solid var(--watch); }
+.bm-key .k.act { border: 2px solid var(--act); }
+.bm-help { font: 400 13px/18px var(--sans); color: var(--ink-2); }
+.bm-figure { grid-template-rows: minmax(0, 1fr) auto auto auto; }
+@container (min-width: 900px) {
+  .bodymap .side.bm-side { display: grid; grid-template-rows: minmax(0, 1fr) 80px; overflow: hidden; }
+  .bm-scroll { overflow-y: auto; min-height: 0;
+    background: linear-gradient(var(--bg) 30%, rgba(247,247,245,0)) top / 100% 24px no-repeat local, linear-gradient(rgba(247,247,245,0), var(--bg) 70%) bottom / 100% 24px no-repeat local,
+      radial-gradient(farthest-side at 50% 0, rgba(20,21,23,0.18), transparent) top / 100% 10px no-repeat scroll, radial-gradient(farthest-side at 50% 100%, rgba(20,21,23,0.18), transparent) bottom / 100% 10px no-repeat scroll; }
+}
+.bm-action { border-top: var(--line); padding: 12px 24px; display: flex; align-items: center; }
+.bm-action .btn { min-height: 56px; width: 100%; justify-content: center; }

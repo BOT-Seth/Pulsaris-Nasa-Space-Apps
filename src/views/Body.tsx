@@ -4,7 +4,7 @@ import { INDICATORS } from '../domain/rules';
 import { age, clock, sameDay } from '../domain/time';
 import type { IndicatorId, RegionId } from '../domain/types';
 import { useApp } from '../state/store';
-import { Btn, plain } from '../ui/primitives';
+import { Btn, plain, provLabel } from '../ui/primitives';
 import { Field, tempError } from './Measurements';
 import { Foot, chipWord, useNav } from '../ui/shared';
 
@@ -37,13 +37,15 @@ export function Figure({ selected, flagged, onPick }: { selected: RegionId | nul
   );
 }
 
+const SHORT: Record<string, string> = { hazards: 'NASA HRP: 5 hazards', risks: 'NASA HRP: Risks', sleepRisk: 'NASA HRP: Sleep risk', fritsch1996: 'Fritsch-Yelle et al., 1996', stahn2017: 'Stahn et al., 2017', hughson2016: 'Hughson et al., 2016' };
+
 /** What one region's measurements say right now, in the words the rest of the app uses. */
 function regionState(ids: IndicatorId[], ev: ReturnType<typeof useApp>['ev'], now: number): { text: string; tone: 'watch' | 'act' | '' } {
   if (!ids.length) return { text: 'Not measured here', tone: '' };
   const hit = ids.filter((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act');
   if (hit.length) {
     const act = hit.some((i) => ev.statuses[i].status === 'act');
-    return { text: `${INFO[hit[0]].name}${hit.length > 1 ? ` +${hit.length - 1}` : ''} · ${act ? 'Act' : 'Watch'}`, tone: act ? 'act' : 'watch' };
+    return { text: `${hit.length > 1 ? `${hit.length} measurements` : INFO[hit[0]].name} · ${act ? 'Act' : 'Watch'}`, tone: act ? 'act' : 'watch' };
   }
   const current = ids.some((i) => { const x = ev.statuses[i].latest; return x && sameDay(x.at, now); });
   return { text: current ? 'No flags' : 'No reading today', tone: '' };
@@ -69,7 +71,9 @@ export function BodyMap({ region }: { region?: RegionId }) {
           {/* Model slot: the 3D figure from the separate model work replaces this 2D figure. Same props: selected, flagged, onPick. */}
           <div className="bm-figure">
             <div className="bm-slot"><Figure selected={sel} flagged={flagged} onPick={setSel} /></div>
-            <p className="cap">Tap a region or choose it from the list. A navigation aid, not anatomy.</p>
+            {flagged.includes('whole') && <p className="bm-whole">Whole body · {regionState(inRegion('whole'), ev, now).text}</p>}
+            <p className="bm-key" aria-hidden="true"><span><i className="k sel" />Selected region</span><span><i className="k watch" />Watch</span><span><i className="k act" />Act</span></p>
+            <p className="bm-help">Tap a region or choose it from the list. A navigation aid, not anatomy.</p>
           </div>
           <ul className="bm-regions" aria-label="Regions">
             {ORDER.map((r) => {
@@ -86,12 +90,13 @@ export function BodyMap({ region }: { region?: RegionId }) {
             })}
           </ul>
         </div>
-        <aside className="side">
+        <aside className="side bm-side">
+          <div className="bm-scroll">
           <section className="panel stack-sm">
             <h2 className="rail-h">{info.name} · {info.system}</h2>
             <p className="sm">{info.fn}</p>
             <p className="sm"><b>In space.</b> {info.inSpace}</p>
-            <p className="cap">{info.sources.map((k, i) => <span key={k}>{i > 0 && ' · '}<a href={SOURCES[k].url} target="_blank" rel="noopener noreferrer">{SOURCES[k].label}<span className="sr"> (opens in new tab)</span></a></span>)}</p>
+            <p className="bm-cite">{info.sources.map((k, i) => <span key={k}>{i > 0 && ' · '}<a href={SOURCES[k].url} target="_blank" rel="noopener noreferrer">{SHORT[k] ?? SOURCES[k].label.split(',')[0]}<span className="sr"> (opens in new tab)</span></a></span>)}</p>
           </section>
           <section className="panel stack-sm">
             <h2 className="rail-h">Measurements here</h2>
@@ -106,19 +111,21 @@ export function BodyMap({ region }: { region?: RegionId }) {
                       <button type="button" className="bm-mrow" onClick={() => go({ view: 'indicator', id: i })}>
                         <span className="bm-mname">{INFO[i].name}</span>
                         <span className={`bm-state ${tone}`}>{word}</span>
-                        <span className="bm-mval">{i === 'alertness' ? (ev.sessionToday ? <>{ev.sessionToday.z >= 0 ? '+' : '−'}{Math.abs(ev.sessionToday.z).toFixed(1)} demo SD · {clock(ev.sessionToday.at)} · {ev.sessionToday.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}</> : 'Not tested today') : s.latest ? <>{plain(s.latest)} · {sameDay(s.latest.at, now) ? clock(s.latest.at) : age(s.latest.at, now)}</> : 'No reading'}</span>
+                        <span className="bm-mval">{i === 'alertness' ? (ev.sessionToday ? <>{ev.sessionToday.z >= 0 ? '+' : '−'}{Math.abs(ev.sessionToday.z).toFixed(1)} demo SD · {clock(ev.sessionToday.at)}</> : 'Not tested today') : s.latest ? <>{plain(s.latest)} · {sameDay(s.latest.at, now) ? clock(s.latest.at) : age(s.latest.at, now)}</> : 'No reading'}</span>
+                        {i === 'alertness' ? (ev.sessionToday && <span className="bm-src">{ev.sessionToday.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}</span>) : s.latest && <span className="bm-src">{provLabel(s.latest.provenance)}</span>}
                       </button>
                     </li>
                   );
                 })}
               </ul>
-            ) : <p className="sm muted">Nothing is measured here. Muscle and bone are managed by the exercise program, outside this app.</p>}
+            ) : <p className="sm muted">This app does not measure muscle strength or bone density. You can report symptoms in this region.</p>}
           </section>
           <section className="panel stack-sm">
             <h2 className="rail-h">Symptoms here today</h2>
             {here.length ? <ul className="bm-meas">{here.map((s) => <li key={s.id} className="sm">{clock(s.at)} · {s.list.join(', ')}{s.tempC !== undefined ? ` · ${s.tempC.toFixed(1)} °C` : ''}</li>)}</ul> : <p className="sm muted">None reported.</p>}
-            <Btn onClick={() => go({ view: 'symptom', region: sel })}>Report a symptom here</Btn>
           </section>
+          </div>
+          <div className="bm-action"><Btn onClick={() => go({ view: 'symptom', region: sel })}>Report a symptom here</Btn></div>
         </aside>
       </div>
       <Foot />
