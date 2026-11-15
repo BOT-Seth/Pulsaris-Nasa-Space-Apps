@@ -56,7 +56,7 @@ export function LogView() {
           <section className="panel stack-sm">
             <h2>Sharing</h2>
             <p className="sm"><FlagLine /></p>
-            <p className="cap">States: queued, delivered, acknowledged. Prototype: no message leaves this tablet.</p>
+            <p className="cap">A real system would show sent, delivered and acknowledged. This prototype cannot send anything.</p>
           </section>
           <section className="panel stack-sm">
             <h2>Your data</h2>

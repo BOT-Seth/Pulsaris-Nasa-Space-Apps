@@ -166,12 +166,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     sendFlag: () => setP((s) => {
       const at = nowOf(s);
-      return { ...s, flag: { queuedAt: at, deliveredAt: s.link ? at : null }, log: withLog(s, s.link ? 'Flag for crew medical officer delivered. Not yet acknowledged.' : 'Flag for crew medical officer queued. No ground link.') };
+      return { ...s, flag: { queuedAt: at, deliveredAt: null }, log: withLog(s, 'Flag for crew medical officer saved on this tablet. No notification sent (prototype).') };
     }),
     jump: (minutes: number) => setP((s) => ({ ...s, anchorMission: s.anchorMission + minutes })),
     toggleLink: () => setP((s) => {
       const link = !s.link;
-      if (link && s.flag && s.flag.deliveredAt === null) return { ...s, link, flag: { ...s.flag, deliveredAt: nowOf(s) }, log: withLog(s, 'Ground link restored. Queued flag delivered. Not yet acknowledged.') };
       return { ...s, link };
     }),
     setShortTest: (shortTest: boolean) => setP((s) => ({ ...s, shortTest })),

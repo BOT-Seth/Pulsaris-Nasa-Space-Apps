@@ -223,7 +223,7 @@ export function Entry({ kind }: { kind: 'bp' | 'temp' }) {
   const { addReadings } = useApp();
   const { go } = useNav();
   const [sys, setSys] = useState(''); const [dia, setDia] = useState(''); const [glu, setGlu] = useState(''); const [temp, setTemp] = useState('');
-  const [fasting, setFasting] = useState(true);
+  const [fasting, setFasting] = useState<'yes' | 'no' | 'unsure' | null>(null);
   const [err, setErr] = useState('');
 
   const submit = () => {
@@ -244,8 +244,9 @@ export function Entry({ kind }: { kind: 'bp' | 'temp' }) {
     }
     if (g !== null) {
       if (Number.isNaN(g) || g < 20 || g > 600) { setErr('Enter a blood sugar between 20 and 600 mg/dL.'); return; }
-      list.push({ indicator: 'bloodSugar', value: Math.round(g), unit: 'mg/dL', quality: fasting ? { usable: true, note: 'Fasting reading' } : { usable: false, note: 'Not fasting' } });
-      parts.push(`blood sugar ${Math.round(g)} mg/dL${fasting ? ', fasting' : ', not fasting'}`);
+      if (fasting === null) { setErr('Answer whether this is a fasting reading. The lab range applies to fasting readings only.'); return; }
+      list.push({ indicator: 'bloodSugar', value: Math.round(g), unit: 'mg/dL', quality: fasting === 'yes' ? { usable: true, note: 'Fasting reading' } : { usable: false, note: fasting === 'no' ? 'Not fasting' : 'Fasting not known' } });
+      parts.push(`blood sugar ${Math.round(g)} mg/dL, ${fasting === 'yes' ? 'fasting' : fasting === 'no' ? 'not fasting' : 'fasting not known'}`);
     }
     if (!list.length) { setErr('Enter at least one reading.'); return; }
     addReadings(list, `Entered: ${parts.join(', ')}.`);
@@ -267,8 +268,11 @@ export function Entry({ kind }: { kind: 'bp' | 'temp' }) {
                 <Field id="dia" label="Diastolic (lower)" unit="mmHg" value={dia} onChange={setDia} />
                 <Field id="glu" label="Blood sugar" unit="mg/dL" value={glu} onChange={setGlu} />
               </div>
-              <label className="check"><input type="checkbox" checked={fasting} onChange={(e) => setFasting(e.target.checked)} />Fasting: nothing to eat for 8 hours</label>
-              <p className="sm muted">The 65–99 mg/dL range applies to fasting readings only. Blood pressure has no in-flight rule; it is kept for your trend.</p>
+              <fieldset className="choices words">
+                <legend>Fasting? Nothing to eat for 8 hours</legend>
+                {(['yes', 'no', 'unsure'] as const).map((v) => <label key={v}><input type="radio" name="fasting" checked={fasting === v} onChange={() => setFasting(v)} />{v === 'yes' ? 'Yes' : v === 'no' ? 'No' : 'Unsure'}</label>)}
+              </fieldset>
+              <p className="sm muted">Needed only for blood sugar. The 65–99 mg/dL range applies to fasting readings only. This prototype does not interpret blood pressure; it is kept for your trend.</p>
             </>
           ) : (
             <>

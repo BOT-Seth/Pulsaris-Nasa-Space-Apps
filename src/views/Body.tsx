@@ -180,13 +180,14 @@ export function FlagView() {
         <h3>Share</h3>
         <h1 tabIndex={-1}>Flag for crew medical officer</h1>
         <dl className="kv">
-          <dt>Recipient</dt><dd>Crew medical officer, then the flight surgeon at the next downlink</dd>
+          <dt>Intended recipient</dt><dd>Crew medical officer on board. The flight surgeon on the ground would see it at the next downlink.</dd>
           <dt>What is shared</dt><dd>{items.length ? items.map((t) => <div key={t}>{t}</div>) : 'Nothing recorded yet today. The flag would carry no records.'}</dd>
-          <dt>Ground link</dt><dd>{link ? 'Available. The flag is delivered now.' : 'None. The flag stays queued on this tablet until a link returns.'}</dd>
+          <dt>Ground link</dt><dd>{link ? 'Available.' : 'None right now.'} Onboard help does not depend on it: tell the crew medical officer directly.</dd>
           <dt>Reply time</dt><dd>Not immediate. A ground reply can take seconds near the Moon and up to about 20 minutes each way at Mars, so the steps on this tablet stand on their own.</dd>
         </dl>
-        <div className="row"><Btn variant="primary" onClick={() => { app.sendFlag(); go({ view: 'today' }); }}>Flag these records</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn></div>
-        <p className="cap">Prototype: no message leaves this tablet. <FlagLine /></p>
+        <p className="notice warn"><b>No notification will be sent.</b> This prototype only saves the flag on this tablet, with the records listed above.</p>
+        <div className="row"><Btn variant="primary" onClick={() => { app.sendFlag(); go({ view: 'today' }); }}>Save flag locally</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn></div>
+        <p className="cap"><FlagLine /></p>
       </section>
     </>
   );

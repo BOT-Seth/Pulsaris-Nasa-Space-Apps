@@ -97,9 +97,8 @@ export function EvidenceRow({ id }: { id: IndicatorId }) {
 
 export function FlagLine() {
   const { flag } = useApp();
-  if (!flag) return <span className="muted">Nothing shared. Records stay on this tablet.</span>;
-  if (flag.deliveredAt !== null) return <>Flag delivered <span className="num">{clock(flag.deliveredAt)}</span>. Not yet acknowledged.</>;
-  return <>Flag queued <span className="num">{clock(flag.queuedAt)}</span>. Not delivered: no ground link.</>;
+  if (!flag) return <span className="muted">Nothing flagged. Records stay on this tablet.</span>;
+  return <>Flag saved on this tablet at <span className="num">{clock(flag.queuedAt)}</span>. No notification sent; this prototype cannot send.</>;
 }
 
 /** The actions that belong to an issue. Task state (deferred, scheduled) lives here, apart from the health state. */
