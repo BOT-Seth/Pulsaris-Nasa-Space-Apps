@@ -794,10 +794,5 @@ legend .hint.block { margin-left: 0; }
   .testbar .phase { white-space: nowrap; }
 }
 
-/* ---------- Header: inverted (white on obsidian). Tokens are re-scoped so every header rule follows. ---------- */
-.toolbar { --bg: #141517; --ink: #ffffff; --ink-2: #b4b8bd; --hairline: #3a3d42; color: var(--ink); border-bottom-color: #141517; }
-.toolbar .nav button[aria-current="page"] { background: #24262a; }
-@container (max-width: 719px) {
-  .navmore { background: linear-gradient(90deg, rgba(20,21,23,0), var(--bg) 35%); }
-  .navmore.left { background: linear-gradient(270deg, rgba(20,21,23,0), var(--bg) 35%); }
-}
+/* ---------- Header: top row inverted (white on obsidian); tabs stay light. Tokens are re-scoped so every bar rule follows. ---------- */
+.bar { --bg: #141517; --ink: #ffffff; --ink-2: #b4b8bd; --hairline: #3a3d42; background: var(--bg); color: var(--ink); }
