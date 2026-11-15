@@ -40,6 +40,14 @@ export function Figure({ selected, flagged, onPick }: { selected: RegionId | nul
 
 const SHORT: Record<string, string> = { hazards: 'NASA HRP: 5 hazards', risks: 'NASA HRP: Risks', sleepRisk: 'NASA HRP: Sleep risk', fritsch1996: 'Fritsch-Yelle et al., 1996', stahn2017: 'Stahn et al., 2017', hughson2016: 'Hughson et al., 2016' };
 
+/** Scrolls a section to 12 px below the sticky header (phones). */
+function jumpTo(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const bar = document.querySelector<HTMLElement>('.toolbar')?.offsetHeight ?? 0;
+  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - bar - 12, behavior: 'smooth' });
+}
+
 /** What one region's measurements say right now, in the words the rest of the app uses. */
 function regionState(ids: IndicatorId[], ev: ReturnType<typeof useApp>['ev'], now: number): { text: string; tone: 'watch' | 'act' | '' } {
   if (!ids.length) return { text: 'Not measured here', tone: '' };
@@ -73,7 +81,8 @@ export function BodyMap({ region }: { region?: RegionId }) {
         <div className="main-col bm-main">
           {/* Model slot: corrected 3D model B; the 2D figure takes over if WebGL or the shader fails. */}
           <div className="bm-figure">
-            <div className="bm-slot"><Body3D selected={sel} flagged={flagged} act={actRegions} onPick={setSel} height="100%" onFallback={setFlat} fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} /></div>
+            <div className="bm-slot" id="bm-figure"><Body3D selected={sel} flagged={flagged} act={actRegions} onPick={setSel} height="100%" onFallback={setFlat} fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} /></div>
+            <button type="button" className="bm-jump" onClick={() => jumpTo('bm-detail')}>View {info.name} details ↓</button>
             {flagged.includes('whole') && <p className="bm-whole">Whole body · {regionState(inRegion('whole'), ev, now).text}</p>}
             <p className="bm-key" aria-hidden="true"><span><i className={`k sel${flat ? ' flat' : ''}`} />Selected region</span>{flat ? <><span><i className="k watch" />Watch</span><span><i className="k act" />Act</span></> : <><span className="kb watch">{Icon.watch}Watch</span><span className="kb act">{Icon.act}Act</span></>}</p>
             <p className="bm-help">{flat ? 'Tap a region or choose it from the list. 2D navigation aid, not anatomy.' : 'Drag to turn. Tap a region or choose it from the list. AI-generated figure; a navigation aid, not anatomy.'}</p>
@@ -96,7 +105,8 @@ export function BodyMap({ region }: { region?: RegionId }) {
         <aside className="side bm-side">
           <div className="bm-scroll">
           <section className="panel stack-sm">
-            <h2 className="rail-h">{info.name} · {info.system}</h2>
+            <h2 className="rail-h" id="bm-detail">{info.name} · {info.system}</h2>
+            <button type="button" className="bm-jump back" onClick={() => jumpTo('bm-figure')}>Back to body map ↑</button>
             <p className="sm">{info.fn}</p>
             <p className="sm"><b>In space.</b> {info.inSpace}</p>
             <p className="bm-cite">{info.sources.map((k, i) => <span key={k}>{i > 0 && ' · '}<a href={SOURCES[k].url} target="_blank" rel="noopener noreferrer">{SHORT[k] ?? SOURCES[k].label.split(',')[0]}<span className="sr"> (opens in new tab)</span></a></span>)}</p>
@@ -115,7 +125,7 @@ export function BodyMap({ region }: { region?: RegionId }) {
                         <span className="bm-mname">{INFO[i].name}</span>
                         <span className={`bm-state ${tone}`}>{word}</span>
                         <span className="bm-mval">{i === 'alertness' ? (ev.sessionToday ? <>{ev.sessionToday.z >= 0 ? '+' : '−'}{Math.abs(ev.sessionToday.z).toFixed(1)} demo SD · {clock(ev.sessionToday.at)}</> : 'Not tested today') : s.latest ? <>{plain(s.latest)} · {sameDay(s.latest.at, now) ? clock(s.latest.at) : age(s.latest.at, now)}</> : 'No reading'}</span>
-                        {i === 'alertness' ? (ev.sessionToday && <span className="bm-src">{ev.sessionToday.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}</span>) : s.latest && <span className="bm-src">{provLabel(s.latest.provenance)}</span>}
+                        {i === 'alertness' ? (ev.sessionToday && <span className="bm-src">{ev.sessionToday.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this device'}</span>) : s.latest && <span className="bm-src">{provLabel(s.latest.provenance)}</span>}
                       </button>
                     </li>
                   );
@@ -158,7 +168,7 @@ export function SymptomForm({ region }: { region?: RegionId }) {
     <form className="today form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
       <div className="main-col">
         <section className="decision task formhead" aria-labelledby="sy-h">
-          <p className="mark lg task"><b>Symptom report</b><span className="scope">kept on this tablet</span></p>
+          <p className="mark lg task"><b>Symptom report</b><span className="scope">kept on this device</span></p>
           <h1 id="sy-h" tabIndex={-1}>What do you notice?</h1>
         </section>
         <section className="panel q">
@@ -186,7 +196,7 @@ export function SymptomForm({ region }: { region?: RegionId }) {
           <p className={`ready${ready ? ' ok' : ''}`} aria-live="polite">{tErr ? 'Correct the highlighted value.' : ready ? summary : 'Choose a location and at least one symptom.'}</p>
           <Btn type="submit" variant="primary" disabled={!ready}>Save report</Btn>
           <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
-          <p className="sm muted">Draft kept on this tablet. Save adds it to your record. Saving does not notify the crew medical officer.</p>
+          <p className="sm muted">Draft kept on this device. Save adds it to your record. Saving does not notify the crew medical officer.</p>
         </section>
         <section className="panel preview-loc" aria-hidden="true">
             <h2 className="rail-h">Location preview</h2>
@@ -213,7 +223,7 @@ export function FlagView() {
     .forEach((r) => items.push({ at: r.at, what: `${INFO[r.indicator].name}: ${plain(r)}`, meta: 'Entered by you' }));
   sessions.filter((s) => s.valid && sameDay(s.at, now)).forEach((s) => items.push({
     at: s.at, what: `Alertness check: ${s.z >= 0 ? '+' : '−'}${Math.abs(s.z).toFixed(1)} demo SD · ${s.band === 'ok' ? 'Within demo band' : s.band === 'watch' ? 'Watch' : 'Act'}`,
-    meta: s.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet',
+    meta: s.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this device',
   }));
   symptoms.filter((s) => sameDay(s.at, now)).forEach((s) => items.push({ at: s.at, what: `Symptom report: ${s.region ? REGIONS[s.region].name : 'No location'} · ${s.list.join(', ')}`, meta: 'Entered by you' }));
   actions.filter((a) => sameDay(a.at, now)).forEach((a) => items.push({ at: a.at, what: `Recorded action: ${actionLabel(a.text)}`, meta: 'Entered by you' }));
@@ -227,7 +237,7 @@ export function FlagView() {
             <p className="mark lg task"><b>Medical review</b><span className="scope">local only</span></p>
             <h1 id="fl-h" tabIndex={-1}>Mark these records for medical review</h1>
             <p className="reason">{n ? `${n} record${n === 1 ? '' : 's'} from today, as of ${clock(now)}.` : 'Nothing recorded yet today; the flag would carry no records.'}</p>
-            <p className="notice warn"><b>No notification will be sent.</b> This prototype only saves the flag on this tablet.</p>
+            <p className="notice warn"><b>No notification will be sent.</b> This prototype only saves the flag on this device.</p>
             <div className="row actions"><Btn variant="primary" onClick={() => { app.sendFlag(); go({ view: 'today' }); }}>Save flag locally</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn></div>
           </section>
           <section className="panel preview-recs" aria-labelledby="recs-h">

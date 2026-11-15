@@ -1,4 +1,20 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+
+/** Measured content width of an element; 0 until the first layout. */
+export function useWidth<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
+/** Viewports narrower than this draw charts in real pixels with phone geometry, not as a scaled tablet drawing. */
+export const PHONE_CHART = 720;
 import { duration } from '../domain/time';
 import type { Baseline, Provenance, Reading, Status } from '../domain/types';
 
@@ -27,7 +43,7 @@ export function Btn(props: { children: ReactNode; onClick?: () => void; variant?
   );
 }
 
-const PROV: Record<Provenance, string> = { recorded: 'Earth dataset · MMASH', synthetic: 'Synthetic history', 'self-reported': 'Entered by you', 'measured-here': 'Measured on this tablet' };
+const PROV: Record<Provenance, string> = { recorded: 'Earth dataset · MMASH', synthetic: 'Synthetic history', 'self-reported': 'Entered by you', 'measured-here': 'Measured on this device' };
 export const provLabel = (p: Provenance): string => PROV[p];
 /** Provenance tag. Synthetic gets a dashed outline as well as the word. */
 export function Prov({ p, test }: { p: Provenance; test?: boolean }) {
@@ -126,8 +142,11 @@ export interface LegendItem { mark: 'syn' | 'real' | 'band' | 'line' | 'bar-syn'
 
 export function TrendChart(props: { points: TrendPoint[]; today: number; days?: number; kind: Kind; baseline?: Baseline | null; scale?: [number, number]; refLine?: { v: number; label: string }; fmt?: (v: number) => string; bandLabel?: string; summary: string; height?: number; compact?: boolean; legend?: LegendItem[] }) {
   const { points, today, days = 8, kind, baseline, scale, refLine, fmt = (v) => String(Math.round(v)), bandLabel = 'Your usual range', summary, height, compact, legend } = props;
-  const W = 640, H = height ?? 210, L = 56, R = 16, T = 10, B = 26;
-  const pr = compact ? 4 : 6;
+  const [box, bw0] = useWidth<HTMLElement>();
+  const phone = bw0 > 0 && window.innerWidth < PHONE_CHART;
+  // Phone: 1 unit = 1 px, at least 120 px of plotting height, 6 px points.
+  const W = phone ? bw0 : 640, H = phone ? 120 + 10 + 24 : height ?? 210, L = phone ? 36 : 56, R = phone ? 8 : 16, T = 10, B = phone ? 24 : 26;
+  const pr = phone ? 3 : compact ? 4 : 6;
   const first = today - days + 1;
   const vis = points.filter((p) => p.day >= first && p.day <= today);
   const vals = vis.flatMap((p) => (p.v2 === undefined ? [p.v] : [p.v, p.v2]));
@@ -144,8 +163,8 @@ export function TrendChart(props: { points: TrendPoint[]; today: number; days?: 
   const cls = (p: TrendPoint) => (p.day === today && p.prov !== 'synthetic' ? 'last' : p.prov === 'synthetic' ? 'syn' : '');
   const bw = Math.min(26, ((W - L - R) / days) * 0.5);
   return (
-    <figure className="stack-sm">
-      <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary}>
+    <figure className="stack-sm" ref={box}>
+      <svg className={`chart${phone ? ' phone' : ''}`} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary}>
         {ticks.map((t, i) => (
           <g key={i}><line className="axis" x1={L} x2={W - R} y1={y(t)} y2={y(t)} /><text x={L - 8} y={y(t) + 4} textAnchor="end">{fmt(t)}</text></g>
         ))}
@@ -162,7 +181,7 @@ export function TrendChart(props: { points: TrendPoint[]; today: number; days?: 
         ))}
         {(kind === 'line' || kind === 'dots') && vis.map((p) => <circle key={p.day} className={`pt ${cls(p)}`} cx={x(p.day)} cy={y(p.v)} r={p.day === today ? pr + 1 : pr} />)}
         {Array.from({ length: days }, (_, i) => first + i).filter((d) => d >= 1).map((d) => (
-          <text key={d} x={x(d)} y={H - 8} textAnchor="middle">{d === today ? 'Today' : `D${d}`}</text>
+          <text key={d} x={x(d)} y={H - 8} textAnchor="middle">{d === today ? (phone ? 'Now' : 'Today') : phone ? `${d}` : `D${d}`}</text>
         ))}
         {Array.from({ length: days }, (_, i) => first + i).filter((d) => d >= 1 && !vis.some((p) => p.day === d)).map((d) => (
           <text key={`n${d}`} x={x(d)} y={y((lo + hi) / 2) + 4} textAnchor="middle">–</text>

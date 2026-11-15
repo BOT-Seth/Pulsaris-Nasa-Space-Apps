@@ -734,10 +734,6 @@ legend .hint.block { margin-left: 0; }
   .mark .scope { flex-basis: 100%; }
   .mark .scope::before { content: none; }
 
-  /* Charts are drawn in 640 / 496 unit boxes and shrink on phones: enlarge their text units so it stays about 12 px. */
-  .chart text { font-size: 24px; }
-  .compare text { font-size: 17px; }
-  .compare text.strong { font-size: 17px; }
 
   /* Inventory cells: no tablet row height on phones. */
   .gcell { min-height: 0; padding: 14px 16px; }
@@ -771,4 +767,29 @@ legend .hint.block { margin-left: 0; }
   .testmode { min-height: 100vh; min-height: 100dvh; grid-template-rows: auto 1fr auto; }
   .testbar { padding: 10px 16px; font-size: 14px; gap: 12px; }
   .teststrip { padding: 16px; }
+}
+
+/* ---------- Phone round 2 ---------- */
+.navwrap { position: relative; }
+.navmore { display: none; }
+.bm-jump { display: none; }
+.chart.phone text { font-size: 12px; }
+.chart.phone .line { stroke-width: 2; }
+.compare.phone text { font-size: 12px; }
+.compare.phone text.strong { font-size: 14px; }
+@container (max-width: 719px) {
+  .navmore { display: grid; place-items: center; position: absolute; top: 0; bottom: 0; width: 44px; z-index: 2; border: 0; background: linear-gradient(90deg, rgba(247,247,245,0), var(--bg) 35%); font: 400 26px/1 var(--sans); color: var(--ink); cursor: pointer; }
+  .navmore.right { right: 0; }
+  .navmore.left { left: 0; background: linear-gradient(270deg, rgba(247,247,245,0), var(--bg) 35%); }
+  .figure-wrap, .chartbox { max-width: none; }
+  .legend { font: 400 14px/20px var(--sans) !important; }
+  .signal-demo { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .signal-demo .ring { width: 120px; height: 104px; }
+  .bm-jump { display: flex; align-items: center; min-height: 44px; padding: 0; background: none; border: 0; font: 600 15px/20px var(--sans); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; justify-self: start; }
+  .bm-jump.back { min-height: 44px; }
+  input, select, textarea { scroll-margin-top: 120px; scroll-margin-bottom: 16px; }
+}
+@media (max-width: 719px) {
+  .testbar { flex-direction: column; align-items: flex-start; justify-content: center; min-height: 64px; padding: 8px 16px; gap: 0; font: 500 14px/20px var(--sans); }
+  .testbar .phase { white-space: nowrap; }
 }

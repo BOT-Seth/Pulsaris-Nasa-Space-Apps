@@ -41,9 +41,9 @@ export function Foot({ kind }: { kind?: 'test' | 'entry' | 'records' } = {}) {
       {kind === 'test'
         ? <>Prototype · alertness test and simulated examples · not a medical device ·{' '}</>
         : kind === 'entry'
-        ? <>Prototype · entries stay on this tablet · not a medical device ·{' '}</>
+        ? <>Prototype · entries stay on this device · not a medical device ·{' '}</>
         : kind === 'records'
-        ? <>Prototype · records and flags stay on this tablet · not a medical device ·{' '}</>
+        ? <>Prototype · records and flags stay on this device · not a medical device ·{' '}</>
         : <>Prototype · demo scenario “{scenario.def.name}” · {night ? 'last night from an Earth dataset (MMASH)' : 'no overnight recording'} · earlier nights synthetic · not a medical device ·{' '}</>}
       <button type="button" className="linkish" onClick={() => go({ view: 'sources' })}>Sources and limits</button>
     </p>

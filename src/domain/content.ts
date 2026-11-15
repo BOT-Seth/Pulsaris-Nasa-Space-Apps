@@ -76,9 +76,9 @@ export const INFO: Record<IndicatorId, IndicatorInfo> = {
   },
   alertness: {
     name: 'Alertness check', short: 'Alertness', unit: 'speed', region: 'head',
-    how: 'A 3-minute reaction test on this tablet. Run only when a sign of fatigue appears, or before a critical task.',
+    how: 'A 3-minute reaction test on this device. Run only when a sign of fatigue appears, or before a critical task.',
     why: 'Sustained attention was among the scores that most often dropped in flight. The same test type is part of NASA’s Cognition battery.',
-    limit: 'A screening result, not a fitness-for-duty decision. Tablet timing is not benchmarked.',
+    limit: 'A screening result, not a fitness-for-duty decision. Device timing is not benchmarked.',
     sources: ['dev2024', 'basner2011', 'basner2015'],
   },
   bloodPressure: {

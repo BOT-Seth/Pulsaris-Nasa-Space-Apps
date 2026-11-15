@@ -140,7 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const at = nowOf(s);
         const full: PvtSession = { ...sess, id, at };
         const text = full.valid
-          ? `Alertness check · ${full.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this tablet'}: ${full.z >= 0 ? '+' : '−'}${Math.abs(full.z).toFixed(1)} demo SD${full.comparedWith === 'nasa-reference' ? '' : ' vs own baseline'}, ${full.lapses} lapse${full.lapses === 1 ? '' : 's'}, ${full.falseStarts} false start${full.falseStarts === 1 ? '' : 's'} · ${full.band === 'ok' ? 'Within demo band' : full.band === 'watch' ? 'Watch under demo rule' : 'Act under demo rule'}${full.band === 'ok' && s.sessions.some((x) => x.valid && x.band !== 'ok' && Math.floor(x.at / 1440) === Math.floor(full.at / 1440)) ? '; demo follow-up closed' : ''}.${full.protocol === 'demo-short' ? ' Demo length, 45 s.' : ''}`
+          ? `Alertness check · ${full.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this device'}: ${full.z >= 0 ? '+' : '−'}${Math.abs(full.z).toFixed(1)} demo SD${full.comparedWith === 'nasa-reference' ? '' : ' vs own baseline'}, ${full.lapses} lapse${full.lapses === 1 ? '' : 's'}, ${full.falseStarts} false start${full.falseStarts === 1 ? '' : 's'} · ${full.band === 'ok' ? 'Within demo band' : full.band === 'watch' ? 'Watch under demo rule' : 'Act under demo rule'}${full.band === 'ok' && s.sessions.some((x) => x.valid && x.band !== 'ok' && Math.floor(x.at / 1440) === Math.floor(full.at / 1440)) ? '; demo follow-up closed' : ''}.${full.protocol === 'demo-short' ? ' Demo length, 45 s.' : ''}`
           : `Alertness check not scored: ${full.invalidReason}`;
         return { ...s, sessions: [...s.sessions, full], deferUntil: null, recheckAt: full.valid ? null : s.recheckAt, log: withLog(s, text) };
       });
@@ -161,12 +161,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         symptoms: [...s.symptoms, { id: uid(), at, region: d.region, side: d.side, list: d.list, tempC }],
         userReadings: [...s.userReadings, ...temp],
         symptomDraft: { region: null, list: [], temp: '' },
-        log: withLog(s, `Symptom reported: ${d.list.join(', ')}${d.side && d.side !== 'Not sure' ? ` (${d.side.toLowerCase()})` : ''}${tempC === undefined ? '' : `, ${tempC.toFixed(1)} °C`}. Saved on this tablet only.`),
+        log: withLog(s, `Symptom reported: ${d.list.join(', ')}${d.side && d.side !== 'Not sure' ? ` (${d.side.toLowerCase()})` : ''}${tempC === undefined ? '' : `, ${tempC.toFixed(1)} °C`}. Saved on this device only.`),
       };
     }),
     sendFlag: () => setP((s) => {
       const at = nowOf(s);
-      return { ...s, flag: { queuedAt: at, deliveredAt: null }, log: withLog(s, 'Flag for crew medical officer saved on this tablet. No notification sent (prototype).') };
+      return { ...s, flag: { queuedAt: at, deliveredAt: null }, log: withLog(s, 'Flag for crew medical officer saved on this device. No notification sent (prototype).') };
     }),
     jump: (minutes: number) => setP((s) => ({ ...s, anchorMission: s.anchorMission + minutes })),
     toggleLink: () => setP((s) => {

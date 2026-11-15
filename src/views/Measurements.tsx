@@ -25,7 +25,7 @@ function GridCell({ id }: { id: IndicatorId }) {
   if (sess) {
     value = <span className="big">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>demo SD</small></span>;
     line = sess.band === 'ok' ? 'Within demo band' : 'Slower than the demo comparison';
-    meta = `${clock(sess.at)} · ${sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}`;
+    meta = `${clock(sess.at)} · ${sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this device'}`;
   } else if (r && current) {
     value = <Value r={r} className="big" />;
     const b = s.baseline;
@@ -81,7 +81,7 @@ function Trend({ id, list, baseline }: { id: IndicatorId; list: Reading[]; basel
   const today = missionDay(now);
   const pts = points(list);
   const latestProv = pts.length ? pts[pts.length - 1].prov : 'synthetic';
-  const real = latestProv === 'recorded' ? 'Earth dataset · MMASH' : latestProv === 'self-reported' ? 'Entered by you' : 'Measured on this tablet';
+  const real = latestProv === 'recorded' ? 'Earth dataset · MMASH' : latestProv === 'self-reported' ? 'Entered by you' : 'Measured on this device';
   const common = { points: pts, today, height: 134, compact: true };
   switch (id) {
     case 'sleep':
@@ -145,11 +145,11 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
     hero = sess ? (
       <>
         {sess.band === 'ok'
-          ? <Mark kind="clear" word="Within demo band" scope={`Alertness check · ${sess.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this tablet'}`} large />
+          ? <Mark kind="clear" word="Within demo band" scope={`Alertness check · ${sess.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this device'}`} large />
           : <Mark kind={sess.band} scope={`Alertness check${sess.provenance === 'synthetic' ? ' · Simulated result' : ''}`} large />}
         <h1 id="det-h" tabIndex={-1} className="value-h">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>demo SD</small></h1>
         <p className="reason">{sess.z >= 0 ? 'Slower' : 'Faster'} than the demo comparison{sess.band === 'ok' ? '; within the ±1 SD demo band.' : '.'}</p>
-        <p className="limit">Completed {clock(sess.at)} · {sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}</p>
+        <p className="limit">Completed {clock(sess.at)} · {sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this device'}</p>
         <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'result', id: sess.id })}>View latest result</Btn><Btn variant="quiet" onClick={() => go({ view: 'check' })}>Start another check</Btn></div>
         <p className="limit">{sess.band === 'ok' ? 'Demo classification' : 'Demo rule'} · not clinically validated</p>
       </>
@@ -394,7 +394,7 @@ export function Entry({ kind }: { kind: 'bp' | 'temp' }) {
           <p className={`ready${ready ? ' ok' : ''}`} aria-live="polite">{ready ? summary : need}</p>
           <Btn type="submit" variant="primary" disabled={!ready}>Save reading</Btn>
           <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
-          <p className="sm muted">Draft kept on this tablet. Save adds it to your record.</p>
+          <p className="sm muted">Draft kept on this device. Save adds it to your record.</p>
           <p className="sm muted">{bp
             ? 'Demo glucose rule · not clinically validated for finger-stick readings. The 65–99 mg/dL demonstration interval is used only when fasting is answered Yes. Blood pressure is not interpreted.'
             : 'At or above this demo’s 38.0 °C threshold, a re-check is scheduled 30 minutes later.'}</p>

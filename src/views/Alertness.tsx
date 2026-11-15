@@ -9,7 +9,7 @@ import { latest } from '../domain/rules';
 import { clock, sameDay } from '../domain/time';
 import type { Protocol, PvtSession } from '../domain/types';
 import { useApp } from '../state/store';
-import { Btn, Icon, Prov } from '../ui/primitives';
+import { Btn, Icon, PHONE_CHART, Prov, useWidth } from '../ui/primitives';
 import { Mark } from './Today';
 import { Foot, useNav } from '../ui/shared';
 
@@ -264,16 +264,19 @@ export function Check() {
 
 /** Difference from the study reference, in SD. Positive is slower. Watch and Act lines are demo thresholds. */
 function ComparePlot({ s }: { s: PvtSession }) {
-  const W = 496, L = 20, R = 28, Y = 54;
+  const [box, bw0] = useWidth<HTMLElement>();
+  const phone = bw0 > 0 && window.innerWidth < PHONE_CHART;
+  // Phone: real pixels; the result sits on its own line above the band label.
+  const W = phone ? bw0 : 496, L = phone ? 12 : 20, R = phone ? 16 : 28, Y = phone ? 70 : 54, VH = phone ? 132 : 112;
   const lo = -1.5, hi = 3.5;
   const x = (z: number) => L + ((Math.min(hi, Math.max(lo, z)) - lo) / (hi - lo)) * (W - L - R);
   const over = s.z > hi, under = s.z < lo;
   const tone = s.band === 'act' ? 'var(--act)' : s.band === 'watch' ? 'var(--watch)' : 'var(--ink)';
   const zTxt = `${s.z >= 0 ? '+' : '−'}${Math.abs(s.z).toFixed(1)} demo SD`;
   return (
-    <figure className="compare">
-      <svg viewBox={`0 0 ${W} 112`} role="img" aria-label={`Result ${zTxt}${over || under ? ', off scale' : ''}. Demo comparison band plus or minus 1 SD. Demo thresholds: Watch at plus 1 SD, Act at plus 1.5 SD.`}>
-        <text x={W - R} y={14} textAnchor="end" className="strong">Result: {zTxt}{over || under ? ' · off scale' : ''}</text>
+    <figure className={`compare${phone ? ' phone' : ''}`} ref={box}>
+      <svg viewBox={`0 0 ${W} ${VH}`} role="img" aria-label={`Result ${zTxt}${over || under ? ', off scale' : ''}. Demo comparison band plus or minus 1 SD. Demo thresholds: Watch at plus 1 SD, Act at plus 1.5 SD.`}>
+        <text x={phone ? L : W - R} y={14} textAnchor={phone ? 'start' : 'end'} className="strong">Result: {zTxt}{over || under ? ' · off scale' : ''}</text>
         <rect x={x(-1)} y={Y - 16} width={x(1) - x(-1)} height={32} fill="rgba(20,21,23,0.08)" />
         <text x={x(-1)} y={Y - 22}>Demo comparison ±1 SD</text>
         <line x1={L} x2={W - R} y1={Y} y2={Y} stroke="var(--rail)" strokeWidth="2" />

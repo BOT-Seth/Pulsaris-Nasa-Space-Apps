@@ -73,7 +73,7 @@ export function CheckIn() {
           <p className={`ready${ready ? ' ok' : ''}`} aria-live="polite">{ready ? 'All answered. Ready to save.' : `Answer all ${total} questions.`}</p>
           <Btn type="submit" variant="primary" disabled={!ready}>Save check-in</Btn>
           <Btn variant="quiet" onClick={() => go({ view: 'today' })}>Close, keep draft</Btn>
-          <p className="sm muted">Draft kept on this tablet. Save adds it to your record.</p>
+          <p className="sm muted">Draft kept on this device. Save adds it to your record.</p>
         </section>
       </aside>
       <div className="formfoot"><Foot /></div>
