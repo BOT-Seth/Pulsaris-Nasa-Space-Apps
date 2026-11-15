@@ -14,6 +14,7 @@ import {
 import model from '../data/body-model.json';
 import chalkLighting from './chalk-lighting.glsl?raw';
 import type { RegionId } from '../domain/types';
+import { Icon } from './primitives';
 
 const REGION_INDEX: Record<Exclude<RegionId, 'whole'>, number> = { head: 0, chest: 1, abdomen: 2, limbs: 3 };
 const INDEX_REGION: RegionId[] = ['head', 'chest', 'abdomen', 'limbs'];
@@ -86,23 +87,17 @@ void main() {
 }`;
 
 // Calibrated chalk lighting (display RGB, no extra gamma), a neutral selection tone and
-// localized amber markers for flagged regions. Opaque; no Fresnel, specular or blue tint.
+// Opaque; no Fresnel, specular or blue tint. Watch/Act status is drawn as crisp screen-space
+// badges over the canvas, hidden when the body itself occludes their anchor.
 const FRAG = /* glsl */ `
 precision highp float;
-uniform float uSel; uniform float uHover; uniform float uAll; uniform vec4 uFlag;
+uniform float uSel; uniform float uHover; uniform float uAll; uniform vec4 uFlag; uniform vec4 uAct;
 varying vec3 vN; varying float vRegion; varying vec3 vPos;
 ${chalkLighting}
 float isRegion(float r) { return 1.0 - step(0.5, abs(vRegion - r)); }
-float marker(vec2 c, float r) { return exp(-pow(length((vPos.xy - c) / r), 2.0)); }
 void main() {
   vec3 clay = chalkColor(vN, vPos);
   vec3 col = clay;
-  float spot = 0.0;
-  spot = max(spot, uFlag.x * marker(vec2(0.0, 0.955), 0.02));
-  spot = max(spot, uFlag.y * marker(vec2(0.035, 0.76), 0.028));
-  spot = max(spot, uFlag.z * marker(vec2(-0.02, 0.57), 0.028));
-  spot = max(spot, uFlag.w * marker(vec2(0.055, 0.25), 0.024));
-  col = mix(col, vec3(0.851, 0.467, 0.024), spot * 0.85);
   float sel = max(isRegion(uSel), uAll);
   col = mix(col, col * vec3(0.70, 0.71, 0.73), sel * 0.55);
   col *= 1.0 - 0.06 * isRegion(uHover) * (1.0 - sel);
@@ -113,8 +108,9 @@ export interface BodyLabel { id: Exclude<RegionId, 'whole'>; title: string; line
 
 const START_ROTATION = 0;
 
-export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; onPick: (r: RegionId) => void; labels?: BodyLabel[]; height?: number | string; fallback: ReactNode }) {
-  const { selected, flagged, onPick, labels = [], height = 520, fallback } = props;
+export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; act?: RegionId[]; onPick: (r: RegionId) => void; labels?: BodyLabel[]; height?: number | string; fallback: ReactNode; onFallback?: (failed: boolean) => void }) {
+  const { selected, flagged, act = [], onPick, labels = [], height = 520, fallback, onFallback } = props;
+  const badges = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const lines = useRef<SVGSVGElement>(null);
@@ -143,7 +139,7 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
     const geometry = buildGeometry(model as BodyModel);
     const material = new ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG,
-      uniforms: { uSel: { value: -1 }, uHover: { value: -1 }, uAll: { value: 0 }, uFlag: { value: new Vector4(0, 0, 0, 0) } },
+      uniforms: { uSel: { value: -1 }, uHover: { value: -1 }, uAll: { value: 0 }, uFlag: { value: new Vector4(0, 0, 0, 0) }, uAct: { value: new Vector4(0, 0, 0, 0) } },
     });
     const mesh = new Mesh(geometry, material);
     mesh.position.y = -0.5;
@@ -153,6 +149,36 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
     scene.add(group);
 
     const v = new Vector3();
+    group.updateMatrixWorld();
+    const probe = new Raycaster();
+    const BADGE: Record<string, [number, number]> = { head: [0.0, 0.955], chest: [0.035, 0.76], abdomen: [-0.02, 0.57], limbs: [0.055, 0.25] };
+    const anchor: Record<string, Vector3> = {};
+    for (const [id, [x, y]] of Object.entries(BADGE)) {
+      probe.set(new Vector3(x, y - 0.5, 5), new Vector3(0, 0, -1));
+      const hit = probe.intersectObject(mesh, false)[0];
+      anchor[id] = mesh.worldToLocal(hit ? hit.point.clone() : new Vector3(x, y - 0.5, 0.06));
+    }
+    const occl = new Raycaster();
+    const w = new Vector3();
+    const placeBadges = () => {
+      const host = badges.current;
+      if (!host) return;
+      const box = el.getBoundingClientRect();
+      mesh.updateMatrixWorld();
+      host.querySelectorAll<HTMLElement>('[data-badge]').forEach((b) => {
+        const p = anchor[b.dataset.badge!];
+        w.copy(p).applyMatrix4(mesh.matrixWorld);
+        // Hidden when another part of the body is in front of the anchor.
+        const dir = w.clone().sub(camera.position);
+        const dist = dir.length();
+        occl.set(camera.position, dir.normalize());
+        const first = occl.intersectObject(mesh, false)[0];
+        const visible = !first || first.distance > dist - 0.012;
+        v.copy(w).project(camera);
+        b.style.transform = `translate(${(v.x * 0.5 + 0.5) * box.width - 10}px, ${(-v.y * 0.5 + 0.5) * box.height - 10}px)`;
+        b.style.visibility = visible ? 'visible' : 'hidden';
+      });
+    };
     const drawLeaders = () => {
       const svg = lines.current;
       if (!svg) return;
@@ -180,6 +206,7 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
       renderer.render(scene, camera);
       if (broken) { setFailed(true); return; }
       drawLeaders();
+      placeBadges();
     };
     const resize = () => {
       const w = el.clientWidth, h = el.clientHeight;
@@ -262,8 +289,13 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
     u.uSel.value = selected && selected !== 'whole' ? REGION_INDEX[selected] : -1;
     u.uAll.value = selected === 'whole' ? 1 : 0;
     (u.uFlag.value as Vector4).set(...(['head', 'chest', 'abdomen', 'limbs'] as const).map((r) => (flagged.includes(r) ? 1 : 0)) as [number, number, number, number]);
+    (u.uAct.value as Vector4).set(...(['head', 'chest', 'abdomen', 'limbs'] as const).map((r) => (act.includes(r) ? 1 : 0)) as [number, number, number, number]);
     a.render();
-  }, [selected, flagged, labels, failed]);
+  }, [selected, flagged, act, labels, failed]);
+
+  useEffect(() => { onFallback?.(failed); }, [failed, onFallback]);
+  // Badges are re-placed after React renders the set of flagged regions.
+  useEffect(() => { api.current?.render(); }, [flagged, act]);
 
   if (failed) return <>{fallback}</>;
   return (
@@ -279,6 +311,11 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
           {l.lines.map((t) => <span key={t}>{t}</span>)}
         </button>
       ))}
+      <div ref={badges} className="badges" aria-hidden="true">
+        {(['head', 'chest', 'abdomen', 'limbs'] as const).filter((r) => flagged.includes(r)).map((r) => (
+          <span key={r} data-badge={r} className={`badge ${act.includes(r) ? 'act' : 'watch'}`}>{act.includes(r) ? Icon.act : Icon.watch}</span>
+        ))}
+      </div>
       <div className="turn">
         <button type="button" className="btn small" aria-label="Rotate the figure left" onClick={() => api.current?.rotate(-0.5)}>⟲</button>
         <button type="button" className="btn small" aria-label="Rotate the figure right" onClick={() => api.current?.rotate(0.5)}>⟳</button>

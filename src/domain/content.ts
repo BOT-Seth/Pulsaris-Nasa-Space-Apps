@@ -133,8 +133,8 @@ export const REGIONS: Record<RegionId, RegionInfo> = {
   },
   whole: {
     name: 'Whole body', system: 'Temperature and immune defence',
-    fn: 'Core temperature is held near 37 °C. A rise can signal infection.',
-    inSpace: 'Immune function changes in flight, and resting core temperature rises slowly on long missions.',
+    fn: 'Body temperature varies with measurement method, time of day and activity. A higher reading alone does not identify its cause.',
+    inSpace: 'Stahn et al. reported increased resting core temperature during long-duration ISS missions. This is background context; it does not establish the cause of an entered temperature.',
     sources: ['stahn2017', 'hazards'],
   },
 };

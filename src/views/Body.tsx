@@ -5,7 +5,7 @@ import { age, clock, sameDay } from '../domain/time';
 import type { IndicatorId, RegionId } from '../domain/types';
 import { useApp } from '../state/store';
 import { Body3D } from '../ui/Body3D';
-import { Btn, plain, provLabel } from '../ui/primitives';
+import { Btn, Icon, plain, provLabel } from '../ui/primitives';
 import { Field, tempError } from './Measurements';
 import { Foot, chipWord, useNav } from '../ui/shared';
 
@@ -56,11 +56,13 @@ export function BodyMap({ region }: { region?: RegionId }) {
   const { ev, symptoms, now } = useApp();
   const { go } = useNav();
   const [sel, setSel] = useState<RegionId>(region ?? 'head');
+  const [flat, setFlat] = useState(false);
   const info = REGIONS[sel];
   const inRegion = (r: RegionId) => INDICATORS.filter((i) => INFO[i].region === r);
   const flagged = ORDER.filter((r) => inRegion(r).some((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act'));
   const here = symptoms.filter((s) => s.region === sel && sameDay(s.at, now));
   const ids = inRegion(sel);
+  const actRegions = ORDER.filter((r) => inRegion(r).some((i) => ev.statuses[i].status === 'act'));
   return (
     <>
       <section className="mhead">
@@ -71,10 +73,10 @@ export function BodyMap({ region }: { region?: RegionId }) {
         <div className="main-col bm-main">
           {/* Model slot: corrected 3D model B; the 2D figure takes over if WebGL or the shader fails. */}
           <div className="bm-figure">
-            <div className="bm-slot"><Body3D selected={sel} flagged={flagged} onPick={setSel} height="100%" fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} /></div>
+            <div className="bm-slot"><Body3D selected={sel} flagged={flagged} act={actRegions} onPick={setSel} height="100%" onFallback={setFlat} fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} /></div>
             {flagged.includes('whole') && <p className="bm-whole">Whole body · {regionState(inRegion('whole'), ev, now).text}</p>}
-            <p className="bm-key" aria-hidden="true"><span><i className="k sel" />Selected region</span><span><i className="k watch" />Watch</span><span><i className="k act" />Act</span></p>
-            <p className="bm-help">Drag to turn. Tap a region or choose it from the list. AI-generated figure; a navigation aid, not anatomy.</p>
+            <p className="bm-key" aria-hidden="true"><span><i className={`k sel${flat ? ' flat' : ''}`} />Selected region</span>{flat ? <><span><i className="k watch" />Watch</span><span><i className="k act" />Act</span></> : <><span className="kb watch">{Icon.watch}Watch</span><span className="kb act">{Icon.act}Act</span></>}</p>
+            <p className="bm-help">{flat ? 'Tap a region or choose it from the list. 2D navigation aid, not anatomy.' : 'Drag to turn. Tap a region or choose it from the list. AI-generated figure; a navigation aid, not anatomy.'}</p>
           </div>
           <ul className="bm-regions" aria-label="Regions">
             {ORDER.map((r) => {

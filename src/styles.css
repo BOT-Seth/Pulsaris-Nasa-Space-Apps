@@ -694,3 +694,16 @@ legend .hint.block { margin-left: 0; }
 @container (max-width: 899px) { .bm-slot { height: 480px; } }
 /* 2D fallback uses the same selection tone as the key. */
 .bm-slot .figure .part.sel > * { fill: #a7a6a1; }
+
+/* ---------- Body map 3D: screen-space status badges ---------- */
+.badges { position: absolute; inset: 0; pointer-events: none; }
+.badge { position: absolute; left: 0; top: 0; width: 20px; height: 20px; display: grid; place-items: center; background: var(--bg); border: 1.5px solid currentColor; border-radius: 3px; }
+.badge svg { width: 14px; height: 14px; }
+.badge.watch { color: var(--watch-text); }
+.badge.act { color: var(--act-text); }
+.bm-key .kb { display: inline-flex; align-items: center; gap: 6px; }
+.bm-key .kb svg { width: 14px; height: 14px; }
+.bm-key .kb.watch { color: var(--watch-text); }
+.bm-key .kb.act { color: var(--act-text); }
+.bm-key .k.sel.flat { background: var(--ink); }
+.bm-slot .figure .part.sel > * { fill: var(--ink); }
