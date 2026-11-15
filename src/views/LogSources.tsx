@@ -199,7 +199,7 @@ export function SourcesView() {
         </section>
         <section className="panel stack-sm right">
           <h2>Use of AI</h2>
-          <p className="sm">Code, interface text and the synthetic history generator were written with AI assistance (Claude). The body map figure is AI-assisted and is a navigation aid, not anatomy.</p>
+          <p className="sm">Code, interface text and the synthetic history generator were written with AI assistance (Claude). The 3D body figure is AI-generated: a local FLUX.2 Klein reference image, a TRELLIS 2 mesh, then Blender finishing and targeted corrections. It is illustrative, not validated anatomy, and serves only as navigation.</p>
           <h2 style={{ marginTop: 8 }}>License and credit</h2>
           <p className="sm">MMASH v1.0.0 © Rossi et al., Open Database License v1.0, via PhysioNet. Derived values in this app are made available under the same license.</p>
         </section>

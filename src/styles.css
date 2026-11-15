@@ -681,3 +681,16 @@ legend .hint.block { margin-left: 0; }
 }
 .bm-action { border-top: var(--line); padding: 12px 24px; display: flex; align-items: center; }
 .bm-action .btn { min-height: 56px; width: 100%; justify-content: center; }
+/* ---------- Body map: 3D model B in the slot ---------- */
+.bm-slot > .body3d { width: 100%; height: 100%; }
+.bm-slot .turn { left: 0; right: 0; bottom: 0; justify-content: center; }
+.bm-slot .turn .btn { min-height: 44px; min-width: 44px; padding: 0 10px; font: 500 14px/20px var(--sans); background: var(--bg); }
+.bm-slot .turn .btn:not(.reset) { font: 400 20px/20px var(--mono); }
+.bm-slot { flex-direction: column; }
+.bm-slot > .body3d { height: calc(100% - 52px) !important; margin-bottom: 52px; }
+.bm-slot .turn { bottom: -52px; }
+.bm-key .k.sel { background: #a7a6a1; }
+/* Narrow screens: the model slot needs a definite height outside the fixed tablet grid. */
+@container (max-width: 899px) { .bm-slot { height: 480px; } }
+/* 2D fallback uses the same selection tone as the key. */
+.bm-slot .figure .part.sel > * { fill: #a7a6a1; }

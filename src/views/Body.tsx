@@ -4,6 +4,7 @@ import { INDICATORS } from '../domain/rules';
 import { age, clock, sameDay } from '../domain/time';
 import type { IndicatorId, RegionId } from '../domain/types';
 import { useApp } from '../state/store';
+import { Body3D } from '../ui/Body3D';
 import { Btn, plain, provLabel } from '../ui/primitives';
 import { Field, tempError } from './Measurements';
 import { Foot, chipWord, useNav } from '../ui/shared';
@@ -68,12 +69,12 @@ export function BodyMap({ region }: { region?: RegionId }) {
       </section>
       <div className="today fill bodymap">
         <div className="main-col bm-main">
-          {/* Model slot: the 3D figure from the separate model work replaces this 2D figure. Same props: selected, flagged, onPick. */}
+          {/* Model slot: corrected 3D model B; the 2D figure takes over if WebGL or the shader fails. */}
           <div className="bm-figure">
-            <div className="bm-slot"><Figure selected={sel} flagged={flagged} onPick={setSel} /></div>
+            <div className="bm-slot"><Body3D selected={sel} flagged={flagged} onPick={setSel} height="100%" fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} /></div>
             {flagged.includes('whole') && <p className="bm-whole">Whole body · {regionState(inRegion('whole'), ev, now).text}</p>}
             <p className="bm-key" aria-hidden="true"><span><i className="k sel" />Selected region</span><span><i className="k watch" />Watch</span><span><i className="k act" />Act</span></p>
-            <p className="bm-help">Tap a region or choose it from the list. A navigation aid, not anatomy.</p>
+            <p className="bm-help">Drag to turn. Tap a region or choose it from the list. AI-generated figure; a navigation aid, not anatomy.</p>
           </div>
           <ul className="bm-regions" aria-label="Regions">
             {ORDER.map((r) => {
