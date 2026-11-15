@@ -707,3 +707,68 @@ legend .hint.block { margin-left: 0; }
 .bm-key .kb.act { color: var(--act-text); }
 .bm-key .k.sel.flat { background: var(--ink); }
 .bm-slot .figure .part.sel > * { fill: var(--ink); }
+
+/* ---------- Phone layout (container under 720 px). Tablet and desktop rules above are unchanged. ---------- */
+@container (max-width: 719px) {
+  /* Compact sticky header: brand, mission clock and ground link on one row; tabs on one scrolling row. */
+  .toolbar { position: sticky; top: 0; z-index: 10; }
+  .bar { flex-wrap: nowrap; align-items: center; }
+  .brand { padding: 10px 16px; font-size: 15px; gap: 8px; }
+  .brand svg { width: 22px; height: 22px; }
+  .meta { display: flex; flex-direction: column; align-items: flex-end; width: auto; padding: 6px 16px; gap: 0; }
+  .meta > * { border: 0 !important; padding: 0; font-size: 0; line-height: 0; display: block; text-align: right; }
+  .meta > *:nth-child(1), .meta > *:nth-child(3) { display: none; }
+  .meta b { font: 500 13px/18px var(--mono); }
+  .meta > *:nth-child(4) b { font: 400 12px/16px var(--mono); color: var(--ink-2); }
+  .nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav button { flex: 0 0 auto; padding: 0 14px; white-space: nowrap; }
+  .nav .end { margin-left: 0; border-left: 0; border-right: 0; }
+
+  /* Page titles grow with wrapped text instead of a fixed tablet height. */
+  .mhead { height: auto; min-height: 0; padding: 16px 16px 14px; }
+  .mhead h1 { font-size: 28px; line-height: 34px; }
+
+  /* Status lines wrap cleanly under the icon. */
+  .mark { flex-wrap: wrap; row-gap: 2px; }
+  .mark .scope { flex-basis: 100%; }
+  .mark .scope::before { content: none; }
+
+  /* Charts are drawn in 640 / 496 unit boxes and shrink on phones: enlarge their text units so it stays about 12 px. */
+  .chart text { font-size: 24px; }
+  .compare text { font-size: 17px; }
+  .compare text.strong { font-size: 17px; }
+
+  /* Inventory cells: no tablet row height on phones. */
+  .gcell { min-height: 0; padding: 14px 16px; }
+  .gcell .gmeta { margin-top: 10px; }
+
+  /* Decision areas: tighter padding, no tablet minimum height. */
+  .decision { min-height: 0 !important; padding: 20px 16px !important; }
+  .today.fixed, .today.fill, .today.form { min-height: 0 !important; }
+  .today.fill.log, .today.fill.bodymap { height: auto !important; }
+  .today.fixed .pband, .today.fixed .pband .chart { height: auto !important; max-height: none !important; }
+  .side .sticky { position: static; }
+  .bm-scroll { overflow: visible; }
+  .bodymap .side.bm-side { display: block; }
+  .formfoot .foot { display: block; padding: 12px 16px; }
+
+  /* Plan & log: time beside the task, state under it, action on its own line. */
+  .plan li { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'when what' '. state' '. act'; row-gap: 4px; padding: 12px 0; align-items: start; }
+  .plan li > .when { grid-area: when; }
+  .plan li > b { grid-area: what; }
+  .plan li > .sm { grid-area: state; }
+  .plan li > .btn, .plan li > span:empty { grid-area: act; justify-self: start; }
+  .plan li > span:empty { display: none; }
+  .record .concern { grid-template-columns: 1fr; gap: 6px; }
+  .record .seq li { grid-template-columns: 48px 1fr; }
+  .preview-recs { padding: 0 16px !important; }
+  .recs .what, .recs .meta { text-align: left; justify-self: start; }
+}
+/* Phone test screen: fill the visible viewport exactly, so nothing scrolls during the timed test. */
+@media (max-width: 719px) {
+  body.testing .app { padding-bottom: 0; }
+  .testmode { min-height: 100vh; min-height: 100dvh; grid-template-rows: auto 1fr auto; }
+  .testbar { padding: 10px 16px; font-size: 14px; gap: 12px; }
+  .teststrip { padding: 16px; }
+}

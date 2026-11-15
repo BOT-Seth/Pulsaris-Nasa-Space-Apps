@@ -80,6 +80,8 @@ function Shell() {
   // Move focus to the new screen's heading, so keyboard and screen-reader users land in the right place.
   useEffect(() => {
     if (window.location.hash !== toHash(route)) window.history.replaceState(null, '', toHash(route));
+    // On phones the tabs scroll sideways: keep the current tab in view.
+    document.querySelector<HTMLElement>('.nav [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (first.current) { first.current = false; return; }
     window.scrollTo(0, 0);
     main.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
