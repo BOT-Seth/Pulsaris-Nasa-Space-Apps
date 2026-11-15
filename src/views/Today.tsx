@@ -41,6 +41,7 @@ function Remind({ onPick }: { onPick: (m: number) => void }) {
 interface Decision {
   kind: MarkKind;
   word?: string;
+  evidence?: IndicatorId[];
   scope?: string;
   headline: ReactNode;
   countdown?: string;
@@ -78,11 +79,13 @@ function useDecision(issue: Issue | undefined): Decision {
     if (flagged.length) {
       const names = flagged.map((i) => INFO[i].name.toLowerCase());
       const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+      const closed = !!sess && sess.band === 'ok';
       return {
-        kind: 'clear', word: 'No open follow-up', scope: sess ? `Alertness · ${resultWord}` : 'Available readings',
-        headline: sess && sess.band === 'ok' ? 'Alertness re-check is within the reference band' : 'No follow-up is open',
-        reason: <>{list.charAt(0).toUpperCase() + list.slice(1)} {flagged.length === 1 ? 'is' : 'are'} still flagged by demo rules. Nothing further is asked of you now.</>,
-        rule: DEMO_RULE,
+        kind: 'clear', word: closed ? 'Demo follow-up closed' : 'No open follow-up', scope: closed ? `Alertness · ${resultWord}` : 'Available readings',
+        headline: closed ? 'Re-check is within the demo comparison band' : 'No follow-up is open',
+        reason: <>{list.charAt(0).toUpperCase() + list.slice(1)} {flagged.length === 1 ? 'remains' : 'remain'} flagged by demo rules.{closed ? ' No further alertness follow-up is scheduled by this demo.' : ''}</>,
+        rule: closed ? `${DEMO_RULE} · Reference-metric equivalence not established` : DEMO_RULE,
+        evidence: closed ? ['alertness', ...flagged.filter((i) => i !== 'alertness')] as IndicatorId[] : undefined,
       };
     }
     return {
@@ -129,7 +132,7 @@ function useDecision(issue: Issue | undefined): Decision {
       return {
         kind: act ? 'act' : 'watch', scope: simulated ? 'Alertness · Simulated result' : 'Alertness',
         headline: act ? 'Review the suggested rest' : 'Review the suggested movement break',
-        reason: <>The {resultWord} is slower than the study reference.</>,
+        reason: <>The {resultWord} is slower than the demo comparison.</>,
         actions: <>
           <Btn variant="primary" onClick={() => sess && go({ view: 'result', id: sess.id })}>{act ? 'View rest steps' : 'View movement-break steps'}</Btn>
           {act && review}
@@ -144,7 +147,7 @@ function useDecision(issue: Issue | undefined): Decision {
         kind: issue.level === 'act' ? 'act' : 'watch', scope: simulated ? 'Alertness · Simulated result' : 'Alertness',
         headline: recheckAt === null ? 'Choose a re-check time' : due ? 'Re-check your alertness now' : `Re-check at ${clock(recheckAt)}`,
         countdown: recheckAt !== null && !due ? inMin(recheckAt) : undefined,
-        reason: <>The {resultWord} was slower than the study reference.{action ? <> {actionName(action.text)} recorded at <span className="num">{clock(action.at)}</span>.</> : null}</>,
+        reason: <>The {resultWord} was slower than the demo comparison.{action ? <> {actionName(action.text)} recorded at <span className="num">{clock(action.at)}</span>.</> : null}</>,
         actions: recheckAt === null
           ? <><Btn variant="primary" onClick={() => app.setRecheck(30)}>Re-check at {clock(now + 30)}</Btn><Btn onClick={() => app.setRecheck(60)}>At {clock(now + 60)}</Btn></>
           : due
@@ -234,8 +237,8 @@ export function Cell({ id, showLast }: { id: IndicatorId; showLast?: boolean }) 
         {head}
         {sess ? (
           <>
-            <span className="big">{Math.abs(sess.z).toFixed(1)} <small>SD {sess.z >= 0 ? 'slower' : 'faster'}</small></span>
-            <span className="sm">Than the study reference · {sess.lapses} lapse{sess.lapses === 1 ? '' : 's'}</span>
+            <span className="big">{Math.abs(sess.z).toFixed(1)} <small>demo SD {sess.z >= 0 ? 'slower' : 'faster'}</small></span>
+            <span className="sm">{sess.band === 'ok' ? 'Within demo comparison band' : 'Than the demo comparison'} · {sess.lapses} lapse{sess.lapses === 1 ? '' : 's'}</span>
             <span className="cellmeta"><span className="num">{clock(sess.at)}</span><Prov p={sess.provenance} test /></span>
           </>
         ) : <span className="na">Not tested today</span>}
@@ -329,7 +332,7 @@ export function Today() {
   const { go } = useNav();
   const issue = ev.issues[0];
   const d = useDecision(issue);
-  const ids = (issue?.evidence ?? ['sleep', 'hrv', 'sleepiness']).slice(0, 3);
+  const ids = (d.evidence ?? issue?.evidence ?? ['sleep', 'hrv', 'sleepiness']).slice(0, 3);
   return (
     <>
       <div className="today">

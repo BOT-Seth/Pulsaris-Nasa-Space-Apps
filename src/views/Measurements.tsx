@@ -23,8 +23,8 @@ function GridCell({ id }: { id: IndicatorId }) {
   const sess = id === 'alertness' ? ev.sessionToday : null;
   let value: ReactNode = null, line = '', meta = '';
   if (sess) {
-    value = <span className="big">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>SD</small></span>;
-    line = sess.band === 'ok' ? 'Within reference band' : 'Slower than the study reference';
+    value = <span className="big">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>demo SD</small></span>;
+    line = sess.band === 'ok' ? 'Within demo band' : 'Slower than the demo comparison';
     meta = `${clock(sess.at)} · ${sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}`;
   } else if (r && current) {
     value = <Value r={r} className="big" />;
@@ -145,10 +145,10 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
     hero = sess ? (
       <>
         {sess.band === 'ok'
-          ? <Mark kind="clear" word="Within reference band" scope={`Alertness check · ${sess.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this tablet'}`} large />
+          ? <Mark kind="clear" word="Within demo band" scope={`Alertness check · ${sess.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this tablet'}`} large />
           : <Mark kind={sess.band} scope={`Alertness check${sess.provenance === 'synthetic' ? ' · Simulated result' : ''}`} large />}
-        <h1 id="det-h" tabIndex={-1} className="value-h">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>SD</small></h1>
-        <p className="reason">{sess.z >= 0 ? 'Slower' : 'Faster'} than the study reference{sess.band === 'ok' ? '; within the displayed ±1 SD band.' : '.'}</p>
+        <h1 id="det-h" tabIndex={-1} className="value-h">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>demo SD</small></h1>
+        <p className="reason">{sess.z >= 0 ? 'Slower' : 'Faster'} than the demo comparison{sess.band === 'ok' ? '; within the ±1 SD demo band.' : '.'}</p>
         <p className="limit">Completed {clock(sess.at)} · {sess.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}</p>
         <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'result', id: sess.id })}>View latest result</Btn><Btn variant="quiet" onClick={() => go({ view: 'check' })}>Start another check</Btn></div>
         <p className="limit">{sess.band === 'ok' ? 'Demo classification' : 'Demo rule'} · not clinically validated</p>
@@ -204,7 +204,7 @@ export function IndicatorDetail({ id }: { id: IndicatorId }) {
                     <tbody>{[...sessions].reverse().slice(0, 3).map((x) => (
                       <tr key={x.id}>
                         <td className="num"><button className="btn quiet small" onClick={() => go({ view: 'result', id: x.id })}>{stamp(x.at)}</button></td>
-                        {x.valid ? <><td className="num">{x.z >= 0 ? '+' : '−'}{Math.abs(x.z).toFixed(1)} SD</td><td className="num">{x.lapses}</td><td className={`bandtxt ${x.band}`}>{x.band === 'ok' ? 'Within band' : x.band === 'watch' ? 'Watch' : 'Act'}</td></> : <td colSpan={3}>Not scored</td>}
+                        {x.valid ? <><td className="num">{x.z >= 0 ? '+' : '−'}{Math.abs(x.z).toFixed(1)} demo SD</td><td className="num">{x.lapses}</td><td className={`bandtxt ${x.band}`}>{x.band === 'ok' ? 'Within demo band' : x.band === 'watch' ? 'Watch' : 'Act'}</td></> : <td colSpan={3}>Not scored</td>}
                         <td><Prov p={x.provenance} test /></td>
                       </tr>
                     ))}</tbody>

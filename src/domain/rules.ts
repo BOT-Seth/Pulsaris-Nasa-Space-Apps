@@ -75,7 +75,7 @@ export function evaluate(input: RuleInput): Evaluation {
   const S = {} as Record<IndicatorId, IndicatorStatus>;
 
   // ---- HRV: more than 1 SD below the 7-night in-flight mean of ln(RMSSD) ----
-  const hrvRule = 'Watch when sleep-window RMSSD is more than 1 SD below your 7-night in-flight average. Off until 7 nights exist.';
+  const hrvRule = 'Demo Watch: sleep-window RMSSD more than 1 SD below the mean of seven baseline nights. In this demo the baseline nights are synthetic, not personal in-flight recordings. No comparison until seven baseline nights exist.';
   const hrv = latest(readings, 'hrv');
   let lowHrv = false;
   if (!today(hrv)) S.hrv = st('hrv', 'none', 'No recording for last night.', hrvRule, 'team-starting-point', hrv);
@@ -116,7 +116,7 @@ export function evaluate(input: RuleInput): Evaluation {
   }
 
   // ---- Heart rate during sleep: outside mean +/- 2 SD of the in-flight baseline ----
-  const hrRule = 'Watch when sleeping heart rate is more than 2 SD from your 7-night in-flight average.';
+  const hrRule = 'Demo Watch: sleeping heart rate more than 2 SD from the mean of seven baseline nights. In this demo the baseline nights are synthetic, not personal in-flight recordings.';
   const hr = latest(readings, 'heartRate');
   let hrFlag = false;
   if (!today(hr)) S.heartRate = st('heartRate', 'none', 'No recording for last night.', hrRule, 'team-starting-point', hr);
@@ -137,7 +137,7 @@ export function evaluate(input: RuleInput): Evaluation {
     : st('mood', 'none', 'Not entered today.', 'No rule. Shown for your own trend.', 'team-starting-point', mood);
 
   // ---- Alertness: latest valid session today ----
-  const pvtRule = 'Watch: 1 to 1.5 SD slower than the comparison, or 3 to 5 lapses. Act: 1.5 SD or more, 6 or more lapses, or 4 or more false starts.';
+  const pvtRule = 'Watch: 1 ≤ difference < 1.5 SD slower, or 3 to 5 lapses. Act: difference ≥ 1.5 SD, 6 or more lapses, or 4 or more false starts. Act takes precedence.';
   const validToday = sessions.filter((s) => s.valid && sameDay(s.at, now)).sort((a, b) => a.at - b.at);
   const sessionToday = validToday.length ? validToday[validToday.length - 1] : null;
   S.alertness = sessionToday
@@ -148,11 +148,11 @@ export function evaluate(input: RuleInput): Evaluation {
   // ---- Blood pressure: recorded, no in-flight rule ----
   const bp = latest(readings, 'bloodPressure');
   S.bloodPressure = !bp
-    ? st('bloodPressure', 'none', 'No reading yet.', 'This prototype does not interpret blood pressure. Readings are kept for your trend.', 'team-starting-point', null)
-    : st('bloodPressure', 'info', fresh(bp) ? 'Logged. This prototype does not interpret blood pressure.' : 'Not a current reading.', 'This prototype does not interpret blood pressure. Readings are kept for your trend.', 'team-starting-point', bp);
+    ? st('bloodPressure', 'none', 'No reading yet.', 'No interpretation rule is configured.', 'team-starting-point', null)
+    : st('bloodPressure', 'info', fresh(bp) ? 'Logged. This prototype does not interpret blood pressure.' : 'Not a current reading.', 'No interpretation rule is configured.', 'team-starting-point', bp);
 
   // ---- Blood sugar: fasting lab range, only for a fresh fasting reading ----
-  const gluRule = `Fasting reading outside ${GLUCOSE_FASTING_RANGE.low}-${GLUCOSE_FASTING_RANGE.high} mg/dL asks for one re-check before anything else.`;
+  const gluRule = `Demo rule: a fasting reading outside ${GLUCOSE_FASTING_RANGE.low}–${GLUCOSE_FASTING_RANGE.high} mg/dL asks for one re-check. Used only when fasting is answered Yes. Not clinically validated for finger-stick readings.`;
   const glu = latest(readings, 'bloodSugar');
   const outOfRange = (r: Reading) => r.value < GLUCOSE_FASTING_RANGE.low || r.value > GLUCOSE_FASTING_RANGE.high;
   const notFasting = (r: Reading) => r.quality?.usable === false;
@@ -191,10 +191,10 @@ export function evaluate(input: RuleInput): Evaluation {
   const issues: Issue[] = [];
   if (sessionToday && sessionToday.band !== 'ok') {
     const acted = actions.some((a) => a.issue === 'alertness-result' && a.at >= sessionToday.at);
-    const slower = `${sessionToday.z.toFixed(1)} SD slower than the ${sessionToday.comparedWith === 'nasa-reference' ? 'NASA ISS pre-flight reference' : 'your own baseline'}`;
+    const slower = `${sessionToday.z.toFixed(1)} demo SD slower than the ${sessionToday.comparedWith === 'nasa-reference' ? 'demo comparison' : 'your own baseline'}`;
     issues.push(acted
       ? { id: 'alertness-followup', level: sessionToday.band, title: 'Alertness re-check', why: `The ${clock(sessionToday.at)} check was ${slower}.`, state: 'Concern still open. A recorded action does not clear it. Only a re-check does.', evidence: ['alertness', 'sleepiness', 'sleep'] }
-      : { id: 'alertness-result', level: sessionToday.band, title: `Slower than reference on the ${clock(sessionToday.at)} check`, why: `${slower.charAt(0).toUpperCase() + slower.slice(1)}, with ${sessionToday.lapses} lapse${sessionToday.lapses === 1 ? '' : 's'}.`, state: 'Concern open. No action recorded yet.', evidence: ['alertness', 'sleepiness', 'sleep'] });
+      : { id: 'alertness-result', level: sessionToday.band, title: `Slower than the demo comparison on the ${clock(sessionToday.at)} check`, why: `${slower.charAt(0).toUpperCase() + slower.slice(1)}, with ${sessionToday.lapses} lapse${sessionToday.lapses === 1 ? '' : 's'}.`, state: 'Concern open. No action recorded yet.', evidence: ['alertness', 'sleepiness', 'sleep'] });
   } else if (triggers.length && (!sessionToday || sessionToday.at < triggerAt)) {
     issues.push({ id: 'alertness-check', level: 'watch', title: 'Alertness check recommended', why: triggers.join(' '), state: 'Current alertness: not assessed.', evidence: ['sleepiness', 'sleep', 'hrv'] });
   }

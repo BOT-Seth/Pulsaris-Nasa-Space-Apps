@@ -140,13 +140,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const at = nowOf(s);
         const full: PvtSession = { ...sess, id, at };
         const text = full.valid
-          ? `Alertness check completed: ${full.z >= 0 ? '+' : '−'}${Math.abs(full.z).toFixed(1)} SD vs ${full.comparedWith === 'nasa-reference' ? 'study reference' : 'own baseline'}, ${full.lapses} lapse${full.lapses === 1 ? '' : 's'}, ${full.falseStarts} false start${full.falseStarts === 1 ? '' : 's'} · ${full.band === 'ok' ? 'Within band' : full.band === 'watch' ? 'Watch' : 'Act'}.${full.protocol === 'demo-short' ? ' Demo length, 45 s.' : ''}`
+          ? `Alertness check · ${full.provenance === 'synthetic' ? 'Simulated result' : 'Measured on this tablet'}: ${full.z >= 0 ? '+' : '−'}${Math.abs(full.z).toFixed(1)} demo SD${full.comparedWith === 'nasa-reference' ? '' : ' vs own baseline'}, ${full.lapses} lapse${full.lapses === 1 ? '' : 's'}, ${full.falseStarts} false start${full.falseStarts === 1 ? '' : 's'} · ${full.band === 'ok' ? 'Within demo band' : full.band === 'watch' ? 'Watch under demo rule' : 'Act under demo rule'}${full.band === 'ok' && s.sessions.some((x) => x.valid && x.band !== 'ok' && Math.floor(x.at / 1440) === Math.floor(full.at / 1440)) ? '; demo follow-up closed' : ''}.${full.protocol === 'demo-short' ? ' Demo length, 45 s.' : ''}`
           : `Alertness check not scored: ${full.invalidReason}`;
         return { ...s, sessions: [...s.sessions, full], deferUntil: null, recheckAt: full.valid ? null : s.recheckAt, log: withLog(s, text) };
       });
       return id;
     },
-    recordAction: (issue: IssueId, text: string) => setP((s) => ({ ...s, actions: [...s.actions, { at: nowOf(s), text, issue }], log: withLog(s, `Action recorded: ${text} Concern still open.`) })),
+    recordAction: (issue: IssueId, text: string) => setP((s) => ({ ...s, actions: [...s.actions, { at: nowOf(s), text, issue }], log: withLog(s, `${(text.replace(/\.$/, '').replace(/ taken$/i, '').charAt(0).toUpperCase() + text.replace(/\.$/, '').replace(/ taken$/i, '').slice(1))} recorded; concern remained open.`) })),
     setDefer: (minutes: number | null) => setP((s) => minutes === null ? { ...s, deferUntil: null }
       : { ...s, deferUntil: nowOf(s) + minutes, log: withLog(s, `Alertness check deferred to ${clock(nowOf(s) + minutes)}. Still not assessed.`) }),
     setRecheck: (minutes: number | null) => setP((s) => minutes === null ? { ...s, recheckAt: null }

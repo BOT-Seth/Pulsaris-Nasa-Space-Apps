@@ -2,10 +2,9 @@ import { useState, type ReactNode } from 'react';
 import { INFO, REGIONS, SOURCES, SYMPTOMS } from '../domain/content';
 import { INDICATORS } from '../domain/rules';
 import { age, clock, sameDay } from '../domain/time';
-import type { RegionId } from '../domain/types';
+import type { IndicatorId, RegionId } from '../domain/types';
 import { useApp } from '../state/store';
-import { Body3D, type BodyLabel } from '../ui/Body3D';
-import { Btn, Chip, Value, plain } from '../ui/primitives';
+import { Btn, plain } from '../ui/primitives';
 import { Field, tempError } from './Measurements';
 import { Foot, chipWord, useNav } from '../ui/shared';
 
@@ -38,6 +37,18 @@ export function Figure({ selected, flagged, onPick }: { selected: RegionId | nul
   );
 }
 
+/** What one region's measurements say right now, in the words the rest of the app uses. */
+function regionState(ids: IndicatorId[], ev: ReturnType<typeof useApp>['ev'], now: number): { text: string; tone: 'watch' | 'act' | '' } {
+  if (!ids.length) return { text: 'Not measured here', tone: '' };
+  const hit = ids.filter((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act');
+  if (hit.length) {
+    const act = hit.some((i) => ev.statuses[i].status === 'act');
+    return { text: `${INFO[hit[0]].name}${hit.length > 1 ? ` +${hit.length - 1}` : ''} · ${act ? 'Act' : 'Watch'}`, tone: act ? 'act' : 'watch' };
+  }
+  const current = ids.some((i) => { const x = ev.statuses[i].latest; return x && sameDay(x.at, now); });
+  return { text: current ? 'No flags' : 'No reading today', tone: '' };
+}
+
 export function BodyMap({ region }: { region?: RegionId }) {
   const { ev, symptoms, now } = useApp();
   const { go } = useNav();
@@ -46,64 +57,69 @@ export function BodyMap({ region }: { region?: RegionId }) {
   const inRegion = (r: RegionId) => INDICATORS.filter((i) => INFO[i].region === r);
   const flagged = ORDER.filter((r) => inRegion(r).some((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act'));
   const here = symptoms.filter((s) => s.region === sel && sameDay(s.at, now));
-  // Leader-line labels: the region's live values, or an honest "not measured".
-  const labels: BodyLabel[] = (['head', 'chest', 'abdomen', 'limbs'] as const).map((r) => {
-    const withValue = inRegion(r).filter((i) => { const x = ev.statuses[i].latest; return x && sameDay(x.at, now); }).slice(0, 2);
-    return {
-      id: r, title: REGIONS[r].name, flagged: flagged.includes(r),
-      lines: withValue.length
-        ? withValue.map((i) => `${INFO[i].short} ${plain(ev.statuses[i].latest!)}`)
-        : [inRegion(r).length ? 'No reading today' : 'Not measured here'],
-    };
-  });
+  const ids = inRegion(sel);
   return (
     <>
-      <section className="panel stack-sm">
+      <section className="mhead">
         <h1 tabIndex={-1}>Body map</h1>
-        <p className="sm muted">Measurements grouped by body system. A highlighted region means one of its measurements is flagged. It is not a finding about the organ.</p>
+        <p className="sm muted">Measurements grouped by body region. A flagged region has a measurement flagged by a demo rule; it is not a finding about that organ.</p>
       </section>
-      <div className="split even">
-        <section className="panel stack">
-          <div className="body3d-wrap">
-            <Body3D selected={sel} flagged={flagged} onPick={setSel} labels={labels} fallback={<Figure selected={sel} flagged={flagged} onPick={setSel} />} />
+      <div className="today fill bodymap">
+        <div className="main-col bm-main">
+          {/* Model slot: the 3D figure from the separate model work replaces this 2D figure. Same props: selected, flagged, onPick. */}
+          <div className="bm-figure">
+            <div className="bm-slot"><Figure selected={sel} flagged={flagged} onPick={setSel} /></div>
+            <p className="cap">Tap a region or choose it from the list. A navigation aid, not anatomy.</p>
           </div>
-          <p className="cap">Drag to spin 360°. Tap a region. AI-generated visualization.</p>
-          <div className="regions" role="group" aria-label="Regions">
-            {ORDER.map((r) => <Btn key={r} small pressed={sel === r} onClick={() => setSel(r)}>{REGIONS[r].name}{flagged.includes(r) ? ' · flagged' : ''}</Btn>)}
-          </div>
-        </section>
-        <div className="right">
+          <ul className="bm-regions" aria-label="Regions">
+            {ORDER.map((r) => {
+              const s = regionState(inRegion(r), ev, now);
+              return (
+                <li key={r}>
+                  <button type="button" className={`bm-row${sel === r ? ' sel' : ''}`} aria-pressed={sel === r} onClick={() => setSel(r)}>
+                    <span className="bm-name">{REGIONS[r].name}</span>
+                    <span className="bm-sys">{REGIONS[r].system}</span>
+                    <span className={`bm-state ${s.tone}`}>{s.text}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <aside className="side">
           <section className="panel stack-sm">
-            <h3>{info.name}</h3>
-            <h2 className="big">{info.system}</h2>
-            <p>{info.fn}</p>
-            <p className="state">In space: {info.inSpace}</p>
+            <h2 className="rail-h">{info.name} · {info.system}</h2>
+            <p className="sm">{info.fn}</p>
+            <p className="sm"><b>In space.</b> {info.inSpace}</p>
             <p className="cap">{info.sources.map((k, i) => <span key={k}>{i > 0 && ' · '}<a href={SOURCES[k].url} target="_blank" rel="noopener noreferrer">{SOURCES[k].label}<span className="sr"> (opens in new tab)</span></a></span>)}</p>
           </section>
           <section className="panel stack-sm">
-            <h2>Measurements here</h2>
-            {inRegion(sel).length ? (
-              <ul className="rows">
-                {inRegion(sel).map((i) => {
+            <h2 className="rail-h">Measurements here</h2>
+            {ids.length ? (
+              <ul className="bm-meas">
+                {ids.map((i) => {
                   const s = ev.statuses[i];
+                  const tone = s.status === 'watch' || s.status === 'act' ? s.status : '';
+                  const word = tone ? (tone === 'act' ? 'Act' : 'Watch') : chipWord(i, s) ?? (i === 'alertness' && s.status === 'ok' ? 'Within demo band' : s.status === 'ok' ? 'No flag' : s.status === 'info' ? 'Logged' : '');
                   return (
                     <li key={i}>
-                      <button type="button" className="tile plain" onClick={() => go({ view: 'indicator', id: i })}>
-                        <span className="tile-head"><b>{INFO[i].name}</b><Chip kind={s.status} word={chipWord(i, s)} /></span>
-                        <span className="sm">{s.latest ? <><Value r={s.latest} className="num" /> · {age(s.latest.at, now)} · </> : null}{s.summary}</span>
+                      <button type="button" className="bm-mrow" onClick={() => go({ view: 'indicator', id: i })}>
+                        <span className="bm-mname">{INFO[i].name}</span>
+                        <span className={`bm-state ${tone}`}>{word}</span>
+                        <span className="bm-mval">{i === 'alertness' ? (ev.sessionToday ? <>{ev.sessionToday.z >= 0 ? '+' : '−'}{Math.abs(ev.sessionToday.z).toFixed(1)} demo SD · {clock(ev.sessionToday.at)} · {ev.sessionToday.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet'}</> : 'Not tested today') : s.latest ? <>{plain(s.latest)} · {sameDay(s.latest.at, now) ? clock(s.latest.at) : age(s.latest.at, now)}</> : 'No reading'}</span>
                       </button>
                     </li>
                   );
                 })}
               </ul>
-            ) : <p className="sm muted">Pulsaris measures nothing here. Muscle and bone are managed by the exercise program, outside this app.</p>}
+            ) : <p className="sm muted">Nothing is measured here. Muscle and bone are managed by the exercise program, outside this app.</p>}
           </section>
           <section className="panel stack-sm">
-            <h2>Symptoms here today</h2>
-            {here.length ? <ul className="rows">{here.map((s) => <li key={s.id}><p>{s.list.join(', ')}</p><p className="cap">Reported {clock(s.at)}</p></li>)}</ul> : <p className="sm muted">None reported.</p>}
-            <div className="row"><Btn variant="primary" onClick={() => go({ view: 'symptom', region: sel })}>Report a symptom here</Btn></div>
+            <h2 className="rail-h">Symptoms here today</h2>
+            {here.length ? <ul className="bm-meas">{here.map((s) => <li key={s.id} className="sm">{clock(s.at)} · {s.list.join(', ')}{s.tempC !== undefined ? ` · ${s.tempC.toFixed(1)} °C` : ''}</li>)}</ul> : <p className="sm muted">None reported.</p>}
+            <Btn onClick={() => go({ view: 'symptom', region: sel })}>Report a symptom here</Btn>
           </section>
-        </div>
+        </aside>
       </div>
       <Foot />
     </>
@@ -173,47 +189,58 @@ export function SymptomForm({ region }: { region?: RegionId }) {
   );
 }
 
+const actionLabel = (text: string) => { const t = text.replace(/\.$/, '').replace(/ taken$/i, ''); return t.charAt(0).toUpperCase() + t.slice(1); };
+
 export function FlagView() {
   const app = useApp();
   const { go } = useNav();
-  const { now, readings, sessions, symptoms, actions, link } = app;
-  const items: string[] = [];
-  if (readings.some((r) => r.provenance === 'self-reported' && r.indicator === 'mood' && sameDay(r.at, now))) items.push('Today’s check-in: mood and sleepiness');
+  const { now, readings, sessions, symptoms, actions } = app;
+  const items: { at: number; what: string; meta: string }[] = [];
+  const mood = readings.find((r) => r.provenance === 'self-reported' && r.indicator === 'mood' && sameDay(r.at, now));
+  const kss = readings.find((r) => r.provenance === 'self-reported' && r.indicator === 'sleepiness' && sameDay(r.at, now));
+  if (mood || kss) items.push({ at: (mood ?? kss)!.at, what: `Check-in: ${[mood ? `mood ${mood.value} of 5` : '', kss ? `sleepiness ${kss.value} of 9` : ''].filter(Boolean).join(' · ')}`, meta: 'Entered by you' });
   readings.filter((r) => r.provenance === 'self-reported' && r.indicator !== 'mood' && r.indicator !== 'sleepiness' && sameDay(r.at, now))
-    .forEach((r) => items.push(`${INFO[r.indicator].name} entered ${clock(r.at)}`));
-  sessions.filter((s) => s.valid && sameDay(s.at, now)).forEach((s) => items.push(`Alertness check result from ${clock(s.at)}`));
-  symptoms.filter((s) => sameDay(s.at, now)).forEach((s) => items.push(`Symptom report from ${clock(s.at)}`));
-  actions.filter((a) => sameDay(a.at, now)).forEach((a) => items.push(`Recorded action from ${clock(a.at)}`));
+    .forEach((r) => items.push({ at: r.at, what: `${INFO[r.indicator].name}: ${plain(r)}`, meta: 'Entered by you' }));
+  sessions.filter((s) => s.valid && sameDay(s.at, now)).forEach((s) => items.push({
+    at: s.at, what: `Alertness check: ${s.z >= 0 ? '+' : '−'}${Math.abs(s.z).toFixed(1)} demo SD · ${s.band === 'ok' ? 'Within demo band' : s.band === 'watch' ? 'Watch' : 'Act'}`,
+    meta: s.provenance === 'synthetic' ? 'Simulated test result' : 'Measured on this tablet',
+  }));
+  symptoms.filter((s) => sameDay(s.at, now)).forEach((s) => items.push({ at: s.at, what: `Symptom report: ${s.region ? REGIONS[s.region].name : 'No location'} · ${s.list.join(', ')}`, meta: 'Entered by you' }));
+  actions.filter((a) => sameDay(a.at, now)).forEach((a) => items.push({ at: a.at, what: `Recorded action: ${actionLabel(a.text)}`, meta: 'Entered by you' }));
+  items.sort((x, y) => x.at - y.at);
   const n = items.length;
   return (
     <>
-      <div className="today fill">
+      <div className="today fill flagpage">
         <div className="main-col">
           <section className="decision task" aria-labelledby="fl-h">
             <p className="mark lg task"><b>Medical review</b><span className="scope">local only</span></p>
             <h1 id="fl-h" tabIndex={-1}>Mark these records for medical review</h1>
-            <p className="reason">{n ? `${n} record${n === 1 ? '' : 's'} from today.` : 'Nothing recorded yet today; the flag would carry no records.'}</p>
+            <p className="reason">{n ? `${n} record${n === 1 ? '' : 's'} from today, as of ${clock(now)}.` : 'Nothing recorded yet today; the flag would carry no records.'}</p>
             <p className="notice warn"><b>No notification will be sent.</b> This prototype only saves the flag on this tablet.</p>
             <div className="row actions"><Btn variant="primary" onClick={() => { app.sendFlag(); go({ view: 'today' }); }}>Save flag locally</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Cancel</Btn></div>
           </section>
-          <section className="panel stack-sm">
-            <h2>Records included</h2>
-            {n ? <ul className="rows quiet">{items.map((t) => <li key={t}><span>{t}</span></li>)}</ul> : <p className="sm muted">None.</p>}
+          <section className="panel preview-recs" aria-labelledby="recs-h">
+            <h2 id="recs-h">Records included</h2>
+            {n ? (
+              <ul className="recs">{items.map((x, i) => (
+                <li key={i}><span className="what">{x.what}</span><span className="meta">{clock(x.at)} · {x.meta}</span></li>
+              ))}</ul>
+            ) : <p className="sm muted">None.</p>}
           </section>
         </div>
         <aside className="side">
           <section className="panel stack-sm">
             <h2 className="rail-h">On board</h2>
-            <p className="sm">Tell the crew medical officer directly. Onboard help does not depend on the ground link.</p>
+            <p>Tell the crew medical officer directly. Onboard help does not depend on the ground link.</p>
           </section>
           <section className="panel stack-sm">
-            <h2 className="rail-h">Ground · intended workflow</h2>
-            <p className="sm">The flight surgeon would see a flag at the next downlink. Ground link now: {link ? 'available' : 'none'}. A reply can take seconds near the Moon and up to about 20 minutes each way at Mars.</p>
-            <p className="sm muted">Not built in this prototype.</p>
+            <h2 className="rail-h">Planned ground workflow — not implemented</h2>
+            <p className="sm">Share locally flagged records with ground medical staff when a connection is available. No delivery or response time is guaranteed.</p>
           </section>
         </aside>
       </div>
-      <Foot />
+      <Foot kind="records" />
     </>
   );
 }

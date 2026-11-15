@@ -1,6 +1,6 @@
 // Alertness check scoring. Pure functions, no UI.
 //
-// Protocol: 3-minute psychomotor vigilance test (PVT-B), 1-4 s random gap, lapse at 355 ms or slower
+// Protocol: 3-minute psychomotor vigilance test (PVT-B), 2-5 s random gap (as used by Dev et al. 2024), lapse at 355 ms or slower
 //   Basner, Mollicone & Dinges 2011, Acta Astronautica, doi:10.1016/j.actaastro.2011.07.015
 // Speed score: 10 - mean(1/RT), RT in seconds. Lower is faster.
 // Reference: NASA ISS astronauts pre-flight, N = 24, mean 5.25, SD 0.24

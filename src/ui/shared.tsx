@@ -32,7 +32,7 @@ export function Back({ to, label }: { to: Route; label: string }) {
   return <div className="backrow"><Btn variant="quiet" onClick={() => go(to)}>‹ {label}</Btn></div>;
 }
 
-export function Foot({ kind }: { kind?: 'test' | 'entry' } = {}) {
+export function Foot({ kind }: { kind?: 'test' | 'entry' | 'records' } = {}) {
   const { scenario } = useApp();
   const { go } = useNav();
   const night = scenario.readings.some((r) => r.provenance === 'recorded');
@@ -42,6 +42,8 @@ export function Foot({ kind }: { kind?: 'test' | 'entry' } = {}) {
         ? <>Prototype · alertness test and simulated examples · not a medical device ·{' '}</>
         : kind === 'entry'
         ? <>Prototype · entries stay on this tablet · not a medical device ·{' '}</>
+        : kind === 'records'
+        ? <>Prototype · records and flags stay on this tablet · not a medical device ·{' '}</>
         : <>Prototype · demo scenario “{scenario.def.name}” · {night ? 'last night from an Earth dataset (MMASH)' : 'no overnight recording'} · earlier nights synthetic · not a medical device ·{' '}</>}
       <button type="button" className="linkish" onClick={() => go({ view: 'sources' })}>Sources and limits</button>
     </p>
@@ -64,7 +66,7 @@ export function EvidenceRow({ id }: { id: IndicatorId }) {
           <SpeedScale speed={sess.speed} mean={REFERENCE.mean} sd={REFERENCE.sd} label="reference" compact />
         </div>
         <div className="stack-sm">
-          <p>{Math.abs(sess.z).toFixed(1)} SD {sess.z >= 0 ? 'slower' : 'faster'} than the NASA ISS pre-flight reference. {sess.lapses} lapse{sess.lapses === 1 ? '' : 's'}.</p>
+          <p>{Math.abs(sess.z).toFixed(1)} demo SD {sess.z >= 0 ? 'slower' : 'faster'} than the demo comparison. {sess.lapses} lapse{sess.lapses === 1 ? '' : 's'}.</p>
           <p className="cap">Completed {clock(sess.at)} · {age(sess.at, now)} · <Prov p={sess.provenance} />{sess.protocol === 'demo-short' ? ' · demo length' : ''}</p>
         </div>
       </li>
