@@ -69,7 +69,10 @@ export function BodyMap({ region }: { region?: RegionId }) {
   const inRegion = (r: RegionId) => INDICATORS.filter((i) => INFO[i].region === r);
   const flagged = ORDER.filter((r) => inRegion(r).some((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act'));
   const here = symptoms.filter((s) => s.region === sel && sameDay(s.at, now));
-  const ids = inRegion(sel);
+  // Most urgent first: Act, then Watch, then everything else in its usual order.
+  const rank = (i: IndicatorId) => (ev.statuses[i].status === 'act' ? 0 : ev.statuses[i].status === 'watch' ? 1 : 2);
+  const byUrgency = (list: IndicatorId[]) => list.map((i, k) => [i, k] as const).sort((x, y) => rank(x[0]) - rank(y[0]) || x[1] - y[1]).map(([i]) => i);
+  const ids = byUrgency(inRegion(sel));
   const actRegions = ORDER.filter((r) => inRegion(r).some((i) => ev.statuses[i].status === 'act'));
   const valueText = (i: IndicatorId): string => {
     if (i === 'alertness') return ev.sessionToday ? `${ev.sessionToday.z >= 0 ? '+' : '−'}${Math.abs(ev.sessionToday.z).toFixed(1)} demo SD · ${clock(ev.sessionToday.at)}` : 'Not tested today';
@@ -78,7 +81,7 @@ export function BodyMap({ region }: { region?: RegionId }) {
   };
   // One callout per flagged region beside the 3D figure; it opens what is flagged and why.
   const callouts: Callout[] = (['head', 'chest', 'abdomen', 'limbs'] as const).filter((r) => flagged.includes(r)).map((r) => {
-    const hit = inRegion(r).filter((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act');
+    const hit = byUrgency(inRegion(r).filter((i) => ev.statuses[i].status === 'watch' || ev.statuses[i].status === 'act'));
     return {
       id: r, tone: hit.some((i) => ev.statuses[i].status === 'act') ? 'act' : 'watch', region: REGIONS[r].name,
       short: hit.length > 1 ? `${hit.length} measurements` : INFO[hit[0]].name,
