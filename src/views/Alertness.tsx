@@ -9,7 +9,8 @@ import { latest } from '../domain/rules';
 import { clock, sameDay } from '../domain/time';
 import type { Protocol, PvtSession } from '../domain/types';
 import { useApp } from '../state/store';
-import { Btn, Chip, Prov, SpeedScale } from '../ui/primitives';
+import { Btn, Icon, Prov } from '../ui/primitives';
+import { Mark } from './Today';
 import { Back, Foot, RecheckControls, useNav } from '../ui/shared';
 
 const PAUSE_LIMIT_MS = 120000;
@@ -215,7 +216,41 @@ export function Check() {
   );
 }
 
-/* ---------- Result: interpretation, then next step, then numbers ---------- */
+/* ---------- Result: plain-language result, the step, then the evidence ---------- */
+
+/** Compact comparison plot: the reading against the reference band and the band rule cut-offs. */
+function ComparePlot({ s }: { s: PvtSession }) {
+  const ref = s.comparedWith === 'nasa-reference';
+  const mean = s.speed - s.z * REFERENCE.sd, sd = REFERENCE.sd;
+  const lo = mean - 2.5 * sd, hi = mean + 3 * sd;
+  const W = 520, L = 16, R = 16, Y = 54;
+  const x = (v: number) => L + ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (W - L - R);
+  const over = s.speed > hi, under = s.speed < lo;
+  const tone = s.band === 'act' ? 'var(--act)' : s.band === 'watch' ? 'var(--watch)' : 'var(--ink)';
+  const label = `${Math.abs(s.z).toFixed(1)} SD ${s.z >= 0 ? 'slower' : 'faster'}`;
+  return (
+    <figure className="compare">
+      <svg viewBox={`0 0 ${W} 112`} role="img" aria-label={`Speed score ${s.speed.toFixed(2)}, ${label} than ${ref ? 'the NASA ISS pre-flight reference' : 'your baseline'} of ${mean.toFixed(2)} plus or minus ${sd.toFixed(2)}. Watch from 1 SD slower, Act from 1.5 SD slower.`}>
+        <rect x={x(mean - sd)} y={Y - 14} width={x(mean + sd) - x(mean - sd)} height={28} fill="rgba(20,21,23,0.08)" />
+        <line x1={L} x2={W - R} y1={Y} y2={Y} stroke="var(--rail)" strokeWidth="2" />
+        <line x1={x(mean)} x2={x(mean)} y1={Y - 14} y2={Y + 14} stroke="var(--ink)" strokeWidth="1.5" />
+        <line x1={x(mean + sd)} x2={x(mean + sd)} y1={Y - 20} y2={Y + 20} stroke="var(--watch)" strokeWidth="1.5" strokeDasharray="3 3" />
+        <line x1={x(mean + 1.5 * sd)} x2={x(mean + 1.5 * sd)} y1={Y - 20} y2={Y + 20} stroke="var(--act)" strokeWidth="1.5" strokeDasharray="3 3" />
+        <text x={x(mean)} y={Y + 34} textAnchor="middle">{ref ? 'Reference' : 'Baseline'} {mean.toFixed(2)}</text>
+        <text x={x(mean + sd) - 5} y={Y - 26} textAnchor="end" fill="var(--watch-text)">Watch</text>
+        <text x={x(mean + 1.5 * sd) + 5} y={Y - 26} textAnchor="start" fill="var(--act-text)">Act</text>
+        <text x={L} y={Y + 34}>← faster</text>
+        <text x={W - R} y={Y + 34} textAnchor="end">slower →</text>
+        <circle cx={x(s.speed)} cy={Y} r="8" fill={tone} stroke="var(--bg)" strokeWidth="2.5" />
+        {(over || under) && <path d={over ? `M${W - R - 2} ${Y - 6} l8 6 -8 6z` : `M${L + 2} ${Y - 6} l-8 6 8 6z`} fill={tone} />}
+        <text x={x(s.speed)} y={Y + 56} textAnchor={over ? 'end' : under ? 'start' : 'middle'} className="strong">This check {s.speed.toFixed(2)}{over || under ? ' (off scale)' : ''}</text>
+      </svg>
+      <figcaption className="cap">Speed score = 10 − mean(1/RT). Lower is faster. Band: {ref ? 'NASA ISS astronauts before flight, N = 24 (Dev et al. 2024)' : 'your rested sessions'}, ±1 SD.</figcaption>
+    </figure>
+  );
+}
+
+const STEPS = ['Result', 'Do the step', 'Record it', 'Re-check'];
 
 export function Result({ id }: { id: string }) {
   const app = useApp();
@@ -226,84 +261,108 @@ export function Result({ id }: { id: string }) {
   const refText = ref ? 'the NASA ISS pre-flight reference' : 'your own rested baseline';
   const isOpen = app.ev.sessionToday?.id === s.id && s.band !== 'ok';
   const acted = app.actions.filter((a) => a.issue === 'alertness-result' && a.at >= s.at).slice(-1)[0];
-  const tag = <p className="cap">Completed {clock(s.at)} · <Prov p={s.provenance} />{s.protocol === 'demo-short' ? ' · demo length, 45 s, indicative only' : ''}</p>;
+  const earlier = app.sessions.filter((x) => x.valid && x.at < s.at && sameDay(x.at, s.at) && x.band !== 'ok').slice(-1)[0];
+  const demo = s.protocol === 'demo-short' ? ' Demo length, 45 s, indicative only.' : '';
 
   if (!s.valid) {
     return (
       <>
         <Back to={{ view: 'today' }} label="Today" />
-        <section className="panel primary stack">
-          <h3>Alertness check · {clock(s.at)}</h3>
-          <div className="title-row"><Chip kind="none" word="Not scored" large /><h1 tabIndex={-1}>This session was not scored</h1></div>
-          <p>{s.invalidReason} No result was recorded, so your alertness is still not assessed.</p>
-          <div className="row"><Btn variant="primary" onClick={() => go({ view: 'check' })}>Run it again</Btn></div>
+        <section className="decision" aria-labelledby="res-h">
+          <p className="mark lg task">{Icon.none}<b>Not scored</b><span className="scope">Alertness check · {clock(s.at)}</span></p>
+          <h1 id="res-h" tabIndex={-1}>This session was not scored</h1>
+          <p className="reason">{s.invalidReason} No result was recorded, so your alertness is still not assessed.</p>
+          <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'check' })}>Run it again</Btn><Btn variant="quiet" onClick={() => go({ view: 'today' })}>Back to Today</Btn></div>
         </section>
         <Foot />
       </>
     );
   }
+
   const cmp = `${Math.abs(s.z).toFixed(1)} SD ${s.z >= 0 ? 'slower' : 'faster'}`;
+  const act = s.band === 'act';
+  const stage = s.band === 'ok' ? 4 : acted ? 3 : 1;
+  const headline = s.band === 'ok' ? 'Alertness within the reference range' : act ? 'Rest now if your schedule allows' : 'Take a short movement break';
+  const stepText = act ? 'Nap 20 to 30 minutes if the schedule allows. Postpone or double-check critical tasks.' : 'A few minutes of movement. Then double-check critical tasks today.';
   return (
     <>
       <Back to={{ view: 'today' }} label="Today" />
-      <section className={`panel primary ${s.band} stack`}>
-        <h3>Alertness check result</h3>
-        {s.band === 'ok' ? (
-          <>
-            <div className="title-row"><Chip kind="ok" large /><h1 tabIndex={-1}>Within the reference range</h1></div>
-            <p>Speed is within 1 SD of {refText}, with {s.lapses} lapse{s.lapses === 1 ? '' : 's'}. No action needed from this check.</p>
-          </>
-        ) : (
-          <>
-            <div className="title-row"><Chip kind={s.band} large /><h1 tabIndex={-1}>{s.band === 'act' ? 'Well below the reference' : 'Slower than the reference'}</h1></div>
-            <p>Treat your alertness as {s.band === 'act' ? 'reduced' : 'possibly reduced'} until a re-check. This is a screening result, not a fitness-for-duty decision.</p>
-          </>
-        )}
-        <SpeedScale speed={s.speed} mean={ref ? REFERENCE.mean : s.speed - s.z * REFERENCE.sd} sd={REFERENCE.sd} label={ref ? 'reference' : 'your baseline'} />
-        <p className="state">{ref ? 'Compared with the NASA ISS pre-flight reference (24 astronauts, Dev et al. 2024), not with you. Your own baseline needs 3 rested sessions.' : 'Compared with your own rested sessions.'}</p>
-        {tag}
-      </section>
-
-      {s.band !== 'ok' && (
-        <section className="panel stack">
-          <h3>Next step · Fatigue countermeasure steps, draft v0.1</h3>
-          <p className="big">{s.band === 'act' ? 'Rest now if your schedule allows: a 20 to 30 minute nap. Postpone or double-check critical tasks.' : 'Take a short movement break. Then double-check critical tasks today.'}</p>
-          <p>Bright light and caffeine: only as your flight surgeon’s plan allows, and not close to your next sleep. No plan is loaded in this prototype.</p>
-          <p className="sm muted">Illustrative wording, not medically reviewed. Based on <a href={SOURCES.sleepRisk.url} target="_blank" rel="noopener noreferrer">{SOURCES.sleepRisk.label}<span className="sr"> (opens in new tab)</span></a>.</p>
-          {isOpen && (acted ? (
-            <>
-              <p className="notice">Recorded <span className="num">{clock(acted.at)}</span>: {acted.text} The concern stays open until a re-check.</p>
-              <RecheckControls />
-            </>
-          ) : (
-            <>
-              <div className="row">
-                <Btn variant="primary" onClick={() => app.recordAction('alertness-result', s.band === 'act' ? 'rest taken.' : 'movement break taken.')}>{s.band === 'act' ? 'Record: rest taken' : 'Record: movement break taken'}</Btn>
-                {s.band === 'act' && !app.flag && <Btn onClick={() => go({ view: 'flag' })}>Flag for crew medical officer</Btn>}
+      <div className="today">
+        <div className="main-col">
+          <section className={`decision ${s.band}`} aria-labelledby="res-h">
+            <Mark kind={s.band} scope={`Alertness check · ${clock(s.at)}`} large />
+            <h1 id="res-h" tabIndex={-1}>{headline}</h1>
+            <p className="reason">
+              This check was {cmp} than {refText}, with {s.lapses} lapse{s.lapses === 1 ? '' : 's'} in {s.trials} responses.
+              {s.band === 'ok' && earlier ? <> It is new evidence after the <span className="num">{clock(earlier.at)}</span> result, so the alertness concern from that check is closed.</> : null}
+            </p>
+            {s.band === 'ok' && <div className="row actions"><Btn variant="primary" onClick={() => go({ view: 'today' })}>Return to Today</Btn></div>}
+            {isOpen && !acted && (
+              <div className="row actions">
+                <Btn variant="primary" onClick={() => app.recordAction('alertness-result', act ? 'Rest taken.' : 'Movement break taken.')}>{act ? 'Record completed rest' : 'Record completed break'}</Btn>
+                {act && !app.flag && <Btn onClick={() => go({ view: 'flag' })}>Flag crew medical officer</Btn>}
               </div>
-              <p className="sm muted">Recording an action does not clear the concern.</p>
-            </>
-          ))}
-        </section>
-      )}
+            )}
+            {isOpen && acted && <div className="stack-sm"><p className="sm">Recorded <span className="num">{clock(acted.at)}</span>: {acted.text} The concern stays open until the re-check.</p><RecheckControls /></div>}
+            <p className="limit">{s.band === 'ok' ? 'Covers alertness only. Sleep, sleepiness and other readings are unchanged by this check. ' : 'Do the step first, then record it. Recording does not close the concern. '}A screening result, not a fitness-for-duty decision.{demo}</p>
+          </section>
 
-      <section className="panel tight">
-        <details>
-          <summary><h2>Numbers and method</h2><span className="cap">{cmp} · {s.lapses} lapse{s.lapses === 1 ? '' : 's'} · {s.falseStarts} false start{s.falseStarts === 1 ? '' : 's'}</span></summary>
-          <div className="body">
-            <dl className="kv">
-              <dt>Speed score</dt><dd><span className="num">{s.speed.toFixed(2)}</span> · lower is faster · 10 − mean(1/RT)</dd>
-              <dt>Comparison</dt><dd><span className="num">{(s.speed - s.z * REFERENCE.sd).toFixed(2)} ± {REFERENCE.sd.toFixed(2)}</span> · difference ÷ SD = <span className="num">{s.z.toFixed(2)}</span> SD</dd>
-              <dt>Mean response speed</dt><dd><span className="num">{s.meanRecip.toFixed(2)} per s</span> · median <span className="num">{s.medianMs} ms</span></dd>
-              <dt>Lapses (≥{LAPSE_MS} ms)</dt><dd><span className="num">{s.lapses} of {s.trials}</span> scored trials</dd>
-              <dt>False starts</dt><dd><span className="num">{s.falseStarts}</span></dd>
-              <dt>Protocol</dt><dd>{s.protocol === 'pvt-b-3min' ? '3 minutes, 1–4 s random gaps, first 3 trials not scored' : '45 seconds, demo length. Not the validated protocol.'}</dd>
-              <dt>Band rule</dt><dd>Watch: 1 to 1.5 SD slower, or 3 to 5 lapses. Act: 1.5 SD or more, 6 or more lapses, or 4 or more false starts. Team starting points, not validated.</dd>
-            </dl>
-            <p className="cap">Tablet display and touch latency are not benchmarked, so the comparison is indicative only. Lapse threshold: Basner et al. 2011 (PVT-B).</p>
-          </div>
-        </details>
-      </section>
+          <section className="panel stack-sm">
+            <h2>How this check compares</h2>
+            <div className="evid">
+              <ComparePlot s={s} />
+              <dl className="facts">
+                <dt>Lapses</dt><dd><span className="num">{s.lapses}</span> of <span className="num">{s.trials}</span> · {LAPSE_MS} ms or slower</dd>
+                <dt>False starts</dt><dd className="num">{s.falseStarts}</dd>
+                <dt>Median response</dt><dd className="num">{s.medianMs} ms</dd>
+                <dt>Source</dt><dd><Prov p={s.provenance} /></dd>
+              </dl>
+            </div>
+          </section>
+
+          {s.band !== 'ok' && (
+            <section className="panel stack-sm">
+              <h2>Fatigue steps <span className="sm muted">· draft, not medically reviewed</span></h2>
+              <ol className="steplist">
+                <li>{stepText}</li>
+                <li>Bright light and caffeine only as your flight surgeon’s plan allows, and not close to your next sleep. No plan is loaded in this prototype.</li>
+                <li>Re-check alertness 30 to 60 minutes after the step.</li>
+              </ol>
+              <p className="cap">Based on <a href={SOURCES.sleepRisk.url} target="_blank" rel="noopener noreferrer">{SOURCES.sleepRisk.label}<span className="sr"> (opens in new tab)</span></a>. A general risk page, not a validated procedure.</p>
+            </section>
+          )}
+
+          <section className="panel tight">
+            <details>
+              <summary><h2>Numbers and method</h2><span className="cap">Speed score {s.speed.toFixed(2)} · {cmp}</span></summary>
+              <div className="body">
+                <dl className="kv">
+                  <dt>Speed score</dt><dd><span className="num">{s.speed.toFixed(2)}</span> · 10 − mean(1/RT) · lower is faster</dd>
+                  <dt>Comparison</dt><dd><span className="num">{(s.speed - s.z * REFERENCE.sd).toFixed(2)} ± {REFERENCE.sd.toFixed(2)}</span> · difference ÷ SD = <span className="num">{s.z.toFixed(2)}</span> SD</dd>
+                  <dt>Mean response speed</dt><dd><span className="num">{s.meanRecip.toFixed(2)} per s</span></dd>
+                  <dt>Protocol</dt><dd>{s.protocol === 'pvt-b-3min' ? '3 minutes, 1–4 s random gaps, first 3 trials not scored' : '45 seconds, demo length. Not the validated protocol.'}</dd>
+                  <dt>Band rule</dt><dd>Watch: 1 to 1.5 SD slower, or 3 to 5 lapses. Act: 1.5 SD or more, 6 or more lapses, or 4 or more false starts. Demo rule, not validated.</dd>
+                </dl>
+                <p className="cap">Tablet display and touch latency are not benchmarked, so the comparison is indicative only. Lapse threshold: Basner et al. 2011 (PVT-B).</p>
+              </div>
+            </details>
+          </section>
+        </div>
+        <aside className="side">
+          <section className="panel stack-sm">
+            <h2>What happens next</h2>
+            <ol className="flow">
+              {STEPS.map((t, i) => <li key={t} className={i < stage ? 'done' : i === stage ? 'now' : ''}><span className="num">{i + 1}</span>{t}</li>)}
+            </ol>
+            <p className="sm muted">{s.band === 'ok' ? 'No step needed from this check.' : acted ? 'Step recorded. Choose or wait for the re-check.' : 'Do the step, then record it here.'}</p>
+          </section>
+          <section className="panel stack-sm">
+            <h2>Symptoms and support</h2>
+            <p className="sm muted">Feeling unwell is worth reporting whatever this result says.</p>
+            <div className="row"><Btn onClick={() => go({ view: 'symptom' })}>Report a symptom</Btn></div>
+          </section>
+        </aside>
+      </div>
       <Foot />
     </>
   );

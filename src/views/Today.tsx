@@ -13,7 +13,7 @@ import { FlagLine, Foot, chipWord, useNav } from '../ui/shared';
 
 /* ---------- Status mark: only for real judgments ---------- */
 
-function Mark({ kind, scope, large }: { kind: 'ok' | 'watch' | 'act' | 'task'; scope: string; large?: boolean }) {
+export function Mark({ kind, scope, large }: { kind: 'ok' | 'watch' | 'act' | 'task'; scope: string; large?: boolean }) {
   const word = kind === 'task' ? 'Task due' : kind === 'ok' ? 'OK' : kind === 'watch' ? 'Watch' : 'Act';
   const icon = kind === 'task' ? Icon.due : Icon[kind];
   return (

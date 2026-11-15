@@ -348,3 +348,23 @@ td.num { white-space: nowrap; }
   .cell { padding: 20px 24px; }
   .allrow { padding: 0 24px; }
 }
+
+/* ---------- Alertness result ---------- */
+.evid { display: grid; gap: 16px 32px; align-items: start; }
+@container (min-width: 720px) { .evid { grid-template-columns: minmax(0, 520px) minmax(0, 1fr); } }
+.compare svg { display: block; width: 100%; height: auto; }
+.compare text { font: 14px var(--mono); fill: var(--ink-2); }
+.compare text.strong { font-weight: 500; fill: var(--ink); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; align-content: start; }
+.facts dt { font: var(--t-sm); color: var(--ink-2); white-space: nowrap; padding-top: 2px; }
+.facts dd { font: var(--t-body); }
+.steplist { list-style: decimal; padding-left: 28px; display: grid; gap: 8px; max-width: 70ch; }
+.steplist li::marker { font: 500 15px var(--mono); color: var(--ink-2); }
+.flow { display: grid; }
+.flow li { display: flex; align-items: center; gap: 12px; min-height: 44px; border-top: var(--line); color: var(--ink-2); }
+.flow li:first-child { border-top: 0; }
+.flow li .num { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--control); border-radius: 50%; font-size: 13px; }
+.flow li.done { color: var(--ink); }
+.flow li.done .num { background: var(--ink); border-color: var(--ink); color: var(--inverse); }
+.flow li.now { color: var(--ink); font-weight: 600; }
+.flow li.now .num { border: 2px solid var(--ink); }
