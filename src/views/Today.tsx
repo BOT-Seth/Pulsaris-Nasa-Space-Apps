@@ -52,6 +52,12 @@ interface Decision {
 
 const DEMO_RULE = 'Demo rule · not clinically validated';
 
+/** "movement break taken." → "Movement break" */
+const actionName = (text: string): string => {
+  const t = text.replace(/\.$/, '').replace(/ taken$/i, '');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
 function useDecision(issue: Issue | undefined): Decision {
   const app = useApp();
   const { go } = useNav();
@@ -124,7 +130,7 @@ function useDecision(issue: Issue | undefined): Decision {
         kind: issue.level === 'act' ? 'act' : 'watch', scope: simulated ? 'Alertness · Simulated result' : 'Alertness',
         headline: recheckAt === null ? 'Choose a re-check time' : due ? 'Re-check your alertness now' : `Re-check at ${clock(recheckAt)}`,
         countdown: recheckAt !== null && !due ? inMin(recheckAt) : undefined,
-        reason: <>The {resultWord} was slower than the study reference.{action ? <> {action.text.replace(/\.$/, '')} recorded at <span className="num">{clock(action.at)}</span>.</> : null}</>,
+        reason: <>The {resultWord} was slower than the study reference.{action ? <> {actionName(action.text)} recorded at <span className="num">{clock(action.at)}</span>.</> : null}</>,
         actions: recheckAt === null
           ? <><Btn variant="primary" onClick={() => app.setRecheck(30)}>Re-check at {clock(now + 30)}</Btn><Btn onClick={() => app.setRecheck(60)}>At {clock(now + 60)}</Btn></>
           : due
@@ -182,13 +188,13 @@ function explain(id: IndicatorId, app: ReturnType<typeof useApp>): string {
   const s = app.ev.statuses[id];
   const r = s.latest!;
   if (r.quality?.usable === false) return r.quality.note;
-  if (id === 'sleepiness') return `“${KSS[r.value]}.”`;
+  if (id === 'sleepiness') return KSS[r.value];
   if (id === 'hrv' || id === 'heartRate') {
     if (!s.baseline) return s.baselineNeeded !== undefined ? '' : s.summary;
     const b = s.baseline;
     const where = r.value < b.low ? 'Below range' : r.value > b.high ? 'Above range' : 'Within range';
-    const pct = s.summary.match(/(\d+) %/);
-    return `${where}${s.status === 'watch' && pct ? ` · ${pct[1]} % below ${b.synthetic ? 'demo' : 'your'} mean` : ''}`;
+    const pct = s.summary.match(/(\d+)\s?%/);
+    return s.status === 'watch' && pct ? `${where}\n${pct[1]}% below ${b.synthetic ? 'demo' : 'your'} mean` : where;
   }
   return s.summary;
 }
@@ -245,7 +251,7 @@ function Cell({ id }: { id: IndicatorId }) {
       {!b && s.baselineNeeded !== undefined && (
         <span className="sm muted">Demo baseline: {7 - s.baselineNeeded} of 7 nights · no comparison yet</span>
       )}
-      {text && <span className="sm">{text}</span>}
+      {text && text.split('\n').map((line) => <span key={line} className="sm">{line}</span>)}
       <span className="cellmeta"><span className="num">{r.window ? `${clock(r.window.from)}–${clock(r.window.to)}` : clock(r.at)}</span><Prov p={r.provenance} /></span>
     </button>
   );

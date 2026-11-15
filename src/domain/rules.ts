@@ -88,7 +88,7 @@ export function evaluate(input: RuleInput): Evaluation {
       const pct = Math.round((1 - hrv.value / Math.exp(baseline.mean)) * 100);
       lowHrv = z < -1;
       S.hrv = st('hrv', lowHrv ? 'watch' : 'ok',
-        lowHrv ? `${pct} % below the ${baseline.synthetic ? 'demo baseline' : '7-night average'}.` : `Within the ${baseline.synthetic ? 'demo baseline' : 'usual range'}.`, hrvRule, 'team-starting-point', hrv, baseline);
+        lowHrv ? `${pct}% below the ${baseline.synthetic ? 'demo mean' : '7-night average'}.` : `Within the ${baseline.synthetic ? 'demo baseline' : 'usual range'}.`, hrvRule, 'team-starting-point', hrv, baseline);
     }
   }
 
