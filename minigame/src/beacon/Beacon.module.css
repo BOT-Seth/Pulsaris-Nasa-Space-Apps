@@ -1,0 +1,155 @@
+/* Beacon. Uses tokens.css variables only (design doc 04/07). */
+
+.screen {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.label {
+  font: var(--type-label);
+  letter-spacing: var(--tracking-label);
+  color: var(--color-ink-muted);
+  margin: 0;
+}
+.title { font: var(--type-title); margin: 0; }
+.status { font: var(--type-status); margin: 0; }
+.section { font: var(--type-section); margin: 0; }
+.body { font: var(--type-body); color: var(--color-ink-2); margin: 0; }
+.mono { font: var(--type-caption); font-size: 15px; color: var(--color-ink-2); margin: 0; }
+.caption { font: var(--type-caption); color: var(--color-ink-muted); }
+.srOnly {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Buttons (stand-ins for the app's Button component) */
+.primary, .secondary, .quiet {
+  min-height: 52px;
+  min-width: var(--touch-min);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-md);
+  font: var(--type-button);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  transition: background var(--duration-fast) var(--ease);
+}
+.primary { background: var(--color-accent); color: var(--color-ink-inverse); border: none; }
+.primary:hover { background: var(--color-accent-hover); }
+.primary:active { background: var(--color-accent-pressed); }
+.secondary { background: var(--color-surface); color: var(--color-ink); border: var(--border-hairline); }
+.quiet { background: transparent; color: var(--color-accent); border: none; align-self: flex-start; padding: 0 var(--space-2); }
+.primary:focus-visible, .secondary:focus-visible, .quiet:focus-visible,
+.kssStop:focus-visible, .disclosure:focus-visible, .test:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--touch-gap); align-items: center; }
+.snooze { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+
+/* Sleepiness: 9 large stops, one tap picks and continues */
+.kss { display: grid; gap: var(--space-2); }
+.kssStop {
+  display: flex; align-items: center; gap: var(--space-4);
+  min-height: 56px; padding: 0 var(--space-4);
+  background: var(--color-surface); border: var(--border-hairline);
+  border-radius: var(--radius-md); cursor: pointer; text-align: left;
+  color: var(--color-ink);
+}
+.kssStop:hover { border-color: var(--color-accent); }
+.kssNum { font: var(--type-value); min-width: 2ch; }
+.kssWords { font: var(--type-body); }
+@media (orientation: landscape) and (min-width: 1024px) {
+  .kss { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Test: full screen, the whole surface is the tap target */
+.test {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  z-index: var(--z-sheet);
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+}
+.clock {
+  position: absolute; top: var(--space-6); left: var(--space-6);
+  font: var(--type-value); color: var(--color-ink-muted);
+}
+.corner { position: absolute; top: var(--space-4); right: var(--space-4); }
+.ring {
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  border: 12px solid var(--color-accent);
+  display: flex; align-items: center; justify-content: center;
+  visibility: hidden; /* keeps layout still: no shift when it appears */
+}
+.ring[data-state="on"], .ring[data-state="frozen"] { visibility: visible; }
+.counter { font: var(--type-hero-number); color: var(--color-ink); }
+.message { font: var(--type-section); color: var(--status-watch-text); min-height: 24px; margin: 0; }
+.readyText { text-align: center; display: grid; gap: var(--space-2); position: absolute; bottom: 20%; padding: 0 var(--space-6); }
+
+.overlay {
+  position: absolute; inset: 0; background: var(--color-scrim);
+  display: flex; align-items: center; justify-content: center; padding: var(--space-6);
+}
+.dialog { max-width: 480px; display: grid; gap: var(--space-4); color: var(--color-ink); }
+
+/* Result */
+.resultHead { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  font: var(--type-label);
+}
+.chipLg { font: var(--type-section); padding: var(--space-2) var(--space-4); }
+.chip_ok { background: var(--status-ok-soft); color: var(--status-ok-text); }
+.chip_ok svg { color: var(--status-ok); }
+.chip_watch { background: var(--status-watch-soft); color: var(--status-watch-text); }
+.chip_watch svg { color: var(--status-watch); }
+.chip_act { background: var(--status-act-soft); color: var(--status-act-text); }
+.chip_act svg { color: var(--status-act); }
+.chip_none { background: var(--status-none-soft); color: var(--status-none-text); }
+.chip_none svg { color: var(--status-none); }
+
+.cm { display: grid; gap: var(--space-3); }
+.cmAct { border-color: var(--status-act); }
+.secondaryList { margin: 0; padding-left: var(--space-5); font: var(--type-body-sm); color: var(--color-ink-2); display: grid; gap: var(--space-1); }
+.flag { font: var(--type-body-sm); font-weight: 600; color: var(--status-act-text); margin: 0; }
+.source { font: var(--type-caption); color: var(--color-accent); display: inline-flex; align-items: center; gap: var(--space-1); }
+
+.details { border-top: var(--border-hairline); padding-top: var(--space-2); }
+.disclosure {
+  background: none; border: none; cursor: pointer; color: var(--color-ink);
+  font: var(--type-section); display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: var(--touch-min); padding: 0;
+}
+.flip { transform: rotate(180deg); }
+.dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-6); margin: 0; font: var(--type-body-sm); }
+.dl dt { color: var(--color-ink-muted); }
+.dl dd { margin: 0; font-family: var(--font-mono); }
+@media (max-width: 600px) { .dl { grid-template-columns: 1fr; } .dl dd { margin-bottom: var(--space-2); } }
+
+@media (forced-colors: active) {
+  .ring { border-color: CanvasText; }
+}

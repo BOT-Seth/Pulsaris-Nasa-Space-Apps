@@ -1,0 +1,155 @@
+/*
+ * Pulsaris design tokens: single source of truth.
+ * Spec, contrast values and validator output: docs/design/04-DESIGN-TOKENS.md
+ * Copy unchanged to src/styles/tokens.css. Components use these variables only.
+ * Direction: "instrument panel + printed lab report". Light theme only.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --color-bg: #f4f2ee;
+  --color-surface: #ffffff;
+  --color-surface-inset: #ebe8e1;
+  --color-glass: rgba(255, 255, 255, 0.7);
+  --color-glass-fallback: #fcfbfa;
+  --color-hairline: #d8d3c8;
+  --color-scrim: rgba(20, 33, 61, 0.32);
+
+  /* Ink */
+  --color-ink: #14213d;
+  --color-ink-2: #4a5266;
+  --color-ink-muted: #5f6577;
+  --color-ink-inverse: #ffffff;
+
+  /* Accent: interactive only */
+  --color-accent: #1d4ed8;
+  --color-accent-hover: #1a43bc;
+  --color-accent-pressed: #163a9f;
+  --color-accent-soft: rgba(29, 78, 216, 0.1);
+  --color-focus-ring: #1d4ed8;
+
+  /* Status: reserved, always with icon + word */
+  --status-ok: #2e7d4f;
+  --status-ok-text: #256b42;
+  --status-ok-soft: #e6efea;
+  --status-watch: #b7791f;
+  --status-watch-text: #7d5200;
+  --status-watch-soft: #f6efe4;
+  --status-act: #b42318;
+  --status-act-text: #9f1d14;
+  --status-act-soft: #f6e5e3;
+  --status-none: #8a8f9c;
+  --status-none-text: #5f6577;
+  --status-none-soft: #f1f2f3;
+
+  /* Charts */
+  --chart-line: #5a6478;
+  --chart-highlight: var(--color-accent);
+  --chart-baseline-band: rgba(20, 33, 61, 0.07);
+  --chart-limit: #9f1d14;
+  --chart-grid: #e6e2d9;
+  --chart-axis: #cfc9bd;
+  --chart-line-width: 2px;
+  --chart-marker: 8px;
+
+  /* Glass: status header + toolbar ONLY */
+  --glass-blur: 16px;
+  --glass-saturate: 140%;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.8);
+
+  /* Typography */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --type-status: 600 32px/38px var(--font-sans);
+  --type-hero-number: 400 56px/60px var(--font-mono);
+  --type-title: 600 24px/30px var(--font-sans);
+  --type-section: 600 18px/24px var(--font-sans);
+  --type-body: 400 17px/24px var(--font-sans);
+  --type-body-sm: 400 15px/20px var(--font-sans);
+  --type-label: 500 13px/16px var(--font-sans);
+  --type-value: 500 22px/28px var(--font-mono);
+  --type-unit: 400 14px/18px var(--font-mono);
+  --type-caption: 400 12px/16px var(--font-mono);
+  --type-button: 600 17px/22px var(--font-sans);
+  --tracking-label: 0.08em;
+
+  /* Spacing (4-pt) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --card-padding: var(--space-6);
+  --card-gap: var(--space-4);
+  --page-gutter: var(--space-8);
+
+  /* Geometry */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --border-hairline: 1px solid var(--color-hairline);
+
+  /* Touch & icons */
+  --touch-min: 48px;
+  --touch-gap: 12px;
+  --icon: 20px;
+  --icon-toolbar: 24px;
+  --toolbar-height: 64px;
+  --content-max: 1240px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+
+  /* Layers */
+  --z-content: 1;
+  --z-toolbar: 10;
+  --z-sheet: 20;
+  --z-toast: 30;
+}
+
+/* Landscape tablet */
+@media (min-width: 1024px) and (orientation: landscape) {
+  :root { --page-gutter: var(--space-10); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; }
+}
+
+/* Standard card: solid, hairline, no shadow */
+.card {
+  background: var(--color-surface);
+  border: var(--border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--card-padding);
+}
+
+/* Glass: ONLY .status-header and .toolbar may use this */
+.glass {
+  background: var(--color-glass);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-border);
+  border-bottom: var(--border-hairline);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: var(--color-glass-fallback); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass { background: var(--color-glass-fallback); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (forced-colors: active) {
+  .card, .glass { border: 1px solid CanvasText; background: Canvas; }
+}
