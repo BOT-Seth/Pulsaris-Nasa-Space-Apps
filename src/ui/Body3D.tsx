@@ -369,6 +369,8 @@ export function Body3D(props: { selected: RegionId | null; flagged: RegionId[]; 
   return (
     <div className="body3d" ref={wrap} style={{ height }} data-state="3d">
       <canvas ref={canvas} aria-hidden="true" />
+      {/* Visible watermark required by NASA Space Apps for Super Intelligence (SI) generated imagery. */}
+      <p className="si-mark">SI-generated figure</p>
       <svg ref={lines} className="leaders" aria-hidden="true">
         {labels.map((l) => <polyline key={l.id} data-region={l.id} className={selected === l.id ? 'on' : ''} />)}
         {labels.map((l) => <circle key={l.id} data-region={l.id} r="3.5" className={l.flagged ? 'flag' : ''} />)}

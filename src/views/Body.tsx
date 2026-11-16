@@ -102,7 +102,7 @@ export function BodyMap({ region }: { region?: RegionId }) {
             <button type="button" className="bm-jump" onClick={() => jumpTo('bm-detail')}>View {info.name} details ↓</button>
             {flagged.includes('whole') && <p className="bm-whole">Whole body · {regionState(inRegion('whole'), ev, now).text}</p>}
             <p className="bm-key" aria-hidden="true"><span><i className={`k sel${flat ? ' flat' : ''}`} />Selected region</span>{flat ? <><span><i className="k watch" />Watch</span><span><i className="k act" />Act</span></> : <><span className="kb watch">{Icon.watch}Watch</span><span className="kb act">{Icon.act}Act</span></>}</p>
-            <p className="bm-help">{flat ? 'Tap a region or choose it from the list. 2D navigation aid, not anatomy.' : 'Drag to turn. Tap a region or choose it from the list. AI-generated figure; a navigation aid, not anatomy.'}</p>
+            <p className="bm-help">{flat ? 'Tap a region or choose it from the list. 2D navigation aid, not anatomy.' : 'Drag to turn. Tap a region or choose it from the list. SI-generated figure (Super Intelligence); a navigation aid, not anatomy.'}</p>
           </div>
           <ul className="bm-regions" aria-label="Regions">
             {ORDER.map((r) => {
