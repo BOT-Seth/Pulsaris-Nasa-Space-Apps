@@ -853,3 +853,20 @@ legend .hint.block { margin-left: 0; }
 
 /* SI watermark on the generated 3D figure (NASA Space Apps disclosure rule). */
 .si-mark { position: absolute; left: 0; bottom: 4px; margin: 0; padding: 3px 8px; font: 500 12px/16px var(--mono); letter-spacing: 0.04em; color: var(--ink-2); background: rgba(247,247,245,0.85); border: 1px solid var(--hairline); border-radius: 2px; pointer-events: none; }
+
+/* ---------- Desktop (viewport 1440 px and wider): wider sheet on a framed page; tablet and phone rules unchanged ---------- */
+@media (min-width: 1440px) {
+  html, body { background: #E6E6E1; }
+  .app { max-width: 1560px; background: var(--bg); box-shadow: 0 0 0 1px var(--hairline); }
+  .dock details { max-width: 1560px; }
+  .today.fill.bodymap { height: 720px; }
+  .bm-main { grid-template-columns: 440px minmax(0, 1fr); }
+  .bm-slot .callout { max-width: 150px; }
+}
+/* Large monitors: scale the whole 1560 px sheet up so it fills the window width (layout, container queries and picking are unchanged). */
+@media (min-width: 1700px) { .app { zoom: 1.08; } }
+@media (min-width: 1900px) { .app { zoom: 1.21; } }
+@media (min-width: 2100px) { .app { zoom: 1.33; } }
+@media (min-width: 2400px) { .app { zoom: 1.52; } }
+@media (min-width: 2800px) { .app { zoom: 1.78; } }
+@media (min-width: 3400px) { .app { zoom: 2.15; } }
