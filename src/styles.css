@@ -841,3 +841,12 @@ legend .hint.block { margin-left: 0; }
   .callout .cw svg { width: 20px; height: 20px; }
   .callout .cs { display: none; }
 }
+
+/* Measurements grid: each box is tinted by its state; the word in the box header says the same. */
+.gcell.ok { background: var(--ok-soft); box-shadow: inset 4px 0 0 var(--ok); }
+.gcell.watch { background: var(--watch-soft); box-shadow: inset 4px 0 0 var(--watch); }
+.gcell.act { background: var(--act-soft); box-shadow: inset 4px 0 0 var(--act); }
+.gcell.ok:hover { background: #e2efe6; }
+.gcell.watch:hover { background: #f6e8d2; }
+.gcell.act:hover { background: #f6dcd8; }
+.contrib.ok { color: var(--ok-text); }

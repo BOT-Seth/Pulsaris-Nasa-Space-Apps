@@ -21,6 +21,8 @@ function GridCell({ id }: { id: IndicatorId }) {
   const r = s.latest;
   const current = !!r && missionDay(r.at) === missionDay(now);
   const sess = id === 'alertness' ? ev.sessionToday : null;
+  // Box color carries the state with its word: green = no flag on a current reading, amber = Watch, red = Act.
+  const tone = flagged ? s.status : (sess ? sess.band === 'ok' : s.status === 'ok' && current) ? 'ok' : '';
   let value: ReactNode = null, line = '', meta = '';
   if (sess) {
     value = <span className="big">{sess.z >= 0 ? '+' : '−'}{Math.abs(sess.z).toFixed(1)} <small>demo SD</small></span>;
@@ -43,8 +45,8 @@ function GridCell({ id }: { id: IndicatorId }) {
     value = <span className="na">{id === 'alertness' ? 'Not tested today' : 'No reading recorded'}</span>;
   }
   return (
-    <button type="button" className="gcell" onClick={() => go({ view: 'indicator', id })}>
-      <span className="cell-head"><span className="label">{INFO[id].name}</span>{flagged && <span className={`contrib ${s.status}`}>Flagged by demo rule</span>}</span>
+    <button type="button" className={`gcell ${tone}`} onClick={() => go({ view: 'indicator', id })}>
+      <span className="cell-head"><span className="label">{INFO[id].name}</span>{tone && <span className={`contrib ${tone}`}>{tone === 'act' ? 'Act · flagged by demo rule' : tone === 'watch' ? 'Watch · flagged by demo rule' : 'No flag'}</span>}</span>
       {value}
       {line && <span className="sm">{line}</span>}
       {meta && <span className="gmeta">{meta}</span>}
